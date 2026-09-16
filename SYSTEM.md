@@ -194,3 +194,12 @@ The sidebar lists one destination for the same reason. Links get added as their 
 **Phase 1 is functionally complete pending one manual check**: signing up, creating an organization, and landing on the dashboard. That path needs an account and a password, so it is Jayron's to run.
 
 If Supabase's email-confirmation setting is on (the default), sign-up returns no session and the form shows a "check your inbox" state rather than redirecting. Turning confirmation off in Auth settings makes local testing quicker; it should be on again before anything is deployed.
+
+**Repository published.** `https://github.com/Jayronj0616/Lapse` — public, branch `main`, initial commit `c9d0523` covering all 63 files of Phase 1.
+
+Two notes for anyone picking this up:
+
+- `.gitignore` carries an explicit `!.env.example` negation, because `create-next-app` ships a blanket `.env*` rule that would otherwise swallow the one env file a public repo actually needs.
+- The GitHub repository description and topics are set through the GitHub UI, not from this repo, so they are not version-controlled and will not appear in any diff.
+
+Phase 1 is complete and pushed. The only unverified path is the end-to-end sign-up → create organization → dashboard run, which needs a real account and password.

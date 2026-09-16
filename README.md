@@ -92,4 +92,8 @@ pnpm dev
 
 ## Status
 
-Planning. No code written yet. See `SYSTEM.md` for the build order and `STRUCTURE.md` for what exists.
+**Phase 1 complete** — authentication, organizations, and the application shell, with migration `0001` applied to the database.
+
+Next is Phase 2: subjects and document upload, still with no extraction — the point of that phase is a working manual expiry tracker, so the system is useful before a model is involved at all.
+
+See `SYSTEM.md` for the build order and the running progress log, and `STRUCTURE.md` for what exists file by file.
