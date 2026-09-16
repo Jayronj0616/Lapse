@@ -12,10 +12,13 @@ import { cn } from "@/lib/utils";
 export function NavLink({
   href,
   icon: Icon,
+  badge,
   children,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** A count worth acting on. Omitted or zero renders nothing at all. */
+  badge?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -34,6 +37,11 @@ export function NavLink({
     >
       <Icon className="size-4" />
       {children}
+      {badge ? (
+        <span className="ml-auto rounded-full bg-status-review-bg px-2 py-0.5 text-xs font-medium tabular-nums text-status-review">
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }

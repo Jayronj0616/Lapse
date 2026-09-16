@@ -13,11 +13,18 @@ export function ExceptionGroup({
   description,
   documents,
   orgSlug,
+  href,
 }: {
   title: string;
   description: string;
   documents: DocumentWithSubject[];
   orgSlug: string;
+  /**
+   * Where a row goes. Defaults to the document itself; the review group points
+   * at the queue instead, because the useful next action there is reviewing,
+   * not reading.
+   */
+  href?: string;
 }) {
   if (documents.length === 0) return null;
 
@@ -37,7 +44,7 @@ export function ExceptionGroup({
         {documents.map((document) => (
           <li key={document.id}>
             <Link
-              href={`/${orgSlug}/documents/${document.id}`}
+              href={href ?? `/${orgSlug}/documents/${document.id}`}
               className="flex flex-col gap-2 px-4 py-3 transition-colors hover:bg-accent md:flex-row md:items-center md:justify-between"
             >
               <div className="min-w-0">

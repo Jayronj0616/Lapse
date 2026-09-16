@@ -52,8 +52,24 @@ export default async function DashboardPage({
   const soon = withinDays(8, 30);
   const upcoming = withinDays(31, 60);
 
+  // Not on the expiry timeline at all — these are blocked rather than close to
+  // lapsing, and a blocked document has an unknown deadline, which is worse
+  // than a known one.
+  const awaitingReview = documents.filter(
+    (document) => document.status === "needs_review",
+  );
+  const failed = documents.filter(
+    (document) => document.status === "extraction_failed",
+  );
+
   const nothingToDo =
-    expired.length + urgent.length + soon.length + upcoming.length === 0;
+    expired.length +
+      awaitingReview.length +
+      failed.length +
+      urgent.length +
+      soon.length +
+      upcoming.length ===
+    0;
 
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-6 lg:px-8">
@@ -89,6 +105,19 @@ export default async function DashboardPage({
             title="Expired"
             description="Already lapsed. Whatever these cover is not currently legal to operate."
             documents={expired}
+            orgSlug={organization.slug}
+          />
+          <ExceptionGroup
+            title="Awaiting review"
+            description="The model was not confident enough to accept these on its own. Until someone settles them, their real expiry is unknown."
+            documents={awaitingReview}
+            orgSlug={organization.slug}
+            href={`/${organization.slug}/review`}
+          />
+          <ExceptionGroup
+            title="Extraction failed"
+            description="These could not be read at all. Open each one and enter its dates by hand."
+            documents={failed}
             orgSlug={organization.slug}
           />
           <ExceptionGroup

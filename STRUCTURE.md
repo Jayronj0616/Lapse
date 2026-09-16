@@ -24,13 +24,13 @@ lapse/
 │   │       ├── layout.tsx                    OK  membership guard, sidebar, mobile bar
 │   │       ├── dashboard/page.tsx            OK  exception groups by expiry window
 │   │       ├── documents/                    OK  list, upload, detail
-│   │       ├── review/page.tsx               —   the needs_review queue
+│   │       ├── review/page.tsx               OK  the needs_review queue
 │   │       ├── subjects/page.tsx             —   vehicles and people
 │   │       ├── audit/page.tsx                OK  trigger-written log, owner/manager only
 │   │       └── settings/                     —   org settings, members
 │   └── api/
 │       ├── cron/sweep/route.ts               —   daily sweep, checks CRON_SECRET
-│       └── inngest/route.ts                  —   Inngest handler
+│       └── inngest/route.ts                  OK  serve(), signature-verified
 │
 ├── components/
 │   ├── ui/                                   WIP shadcn primitives, unmodified
@@ -49,7 +49,8 @@ lapse/
 │   │   └── UploadDocumentForm.tsx            OK  client; native selects so a plain form posts
 │   ├── subjects/
 │   │   └── CreateSubjectForm.tsx             OK  client; resets itself after a successful add
-│   ├── review/                               —   ReviewQueue, ExtractionCompare, FieldCorrection
+│   ├── review/
+│   │   └── ReviewCard.tsx                    OK  source beside fields, approve or reject
 │   └── dashboard/
 │       ├── ExceptionGroup.tsx                OK  renders nothing when empty
 │       └── HeartbeatIndicator.tsx            —   Phase 5
@@ -68,8 +69,8 @@ lapse/
 │   │   ├── membership.service.ts             —
 │   │   ├── subject.service.ts                OK  list, get, create
 │   │   ├── document.service.ts               OK  list, get, create, signed URLs
-│   │   ├── extraction.service.ts             —   provider call + gate
-│   │   ├── review.service.ts                 —
+│   │   ├── extraction.service.ts             —   folded into the job; no separate service
+│   │   ├── review.service.ts                 OK  listPending, countPending, submit, reject
 │   │   ├── reminder.service.ts               —   ladder, escalation
 │   │   ├── notification.service.ts           —
 │   │   └── audit.service.ts                  OK  read-only by design
@@ -80,24 +81,24 @@ lapse/
 │   │   ├── organization.actions.ts           OK
 │   │   ├── document.actions.ts               OK
 │   │   ├── subject.actions.ts                OK
-│   │   ├── review.actions.ts                 —
+│   │   ├── review.actions.ts                 OK
 │   │   └── reminder.actions.ts               —   acknowledge
 │   ├── validations/
 │   │   ├── auth.schema.ts                    OK
 │   │   ├── organization.schema.ts            OK
 │   │   ├── document.schema.ts                OK  incl. file size and MIME rules
 │   │   ├── subject.schema.ts                 OK
-│   │   ├── extraction.schema.ts              —   expected model output shape
-│   │   └── review.schema.ts                  —
+│   │   ├── extraction.schema.ts              OK  model output shape + fence-tolerant parse
+│   │   └── review.schema.ts                  OK
 │   ├── extraction/
-│   │   ├── provider.ts                       —   interface + env selector
-│   │   ├── gemini.ts                         —   deployed default
-│   │   ├── foundry.ts                        —   local/bulk
-│   │   ├── prompt.ts                         —
-│   │   └── gate.ts                           —   confidence + date sanity
+│   │   ├── provider.ts                       OK  interface + env selector
+│   │   ├── gemini.ts                         OK  deployed default; fetch, no SDK
+│   │   ├── foundry.ts                        OK  local/bulk; rejects PDFs explicitly
+│   │   ├── prompt.ts                         OK  calibrated-confidence anchors
+│   │   └── gate.ts                           OK  confidence, date sanity, type agreement
 │   ├── jobs/
-│   │   ├── client.ts                         —   Inngest client
-│   │   ├── extract-document.job.ts           —   lapse/document.uploaded
+│   │   ├── client.ts                         OK  Inngest client + event contract
+│   │   ├── extract-document.job.ts           OK  lapse/document.uploaded, 3 retries
 │   │   └── sweep.ts                          —   called by the cron route
 │   ├── email/                                —   resend.ts + templates
 │   ├── utils/
@@ -113,7 +114,7 @@ lapse/
 │   └── migrations/
 │       ├── 0001_orgs_and_auth.sql            OK  applied
 │       ├── 0002_subjects_documents_audit.sql WIP written, not yet applied
-│       ├── 0003_extractions_and_reviews.sql  —
+│       ├── 0003_extractions_and_reviews.sql WIP written, not yet applied
 │       ├── 0004_reminders_and_notifications.sql —
 │       └── 0005_audit_and_jobs.sql           —
 │

@@ -43,10 +43,16 @@ export const createDocumentSchema = z
     documentNumber: z.string().trim().max(120).nullable(),
     issuer: z.string().trim().max(120).nullable(),
     issueDate: isoDate.nullable(),
-    // Required in Phase 2: a person is typing it, and a document with no
-    // expiry date is not something this system can do anything useful with.
-    // Phase 3 relaxes this, because extraction can legitimately fail to find one.
-    expiryDate: isoDate,
+    /**
+     * Optional since Phase 3.
+     *
+     * Supplied means the uploader is telling us the answer, and it is taken as
+     * authoritative — no extraction runs, because there is nothing to work out.
+     * Left blank means the document goes to `processing` and the model reads
+     * it. Those are the only two paths; there is deliberately no third one
+     * where a model second-guesses a value a person typed.
+     */
+    expiryDate: isoDate.nullable(),
     file: z
       .instanceof(File, { error: "Attach the document file." })
       .refine((file) => file.size > 0, "Attach the document file.")
@@ -63,7 +69,8 @@ export const createDocumentSchema = z
   // ISO date strings compare correctly as plain strings, so this needs no date
   // parsing — and therefore cannot drift across a timezone boundary.
   .refine(
-    (data) => !data.issueDate || data.expiryDate >= data.issueDate,
+    (data) =>
+      !data.issueDate || !data.expiryDate || data.expiryDate >= data.issueDate,
     {
       error: "The expiry date cannot be before the issue date.",
       path: ["expiryDate"],

@@ -63,6 +63,8 @@ One row per attempt, not one per document. Keeping failures and retries means yo
 
 `extracted` holds the parsed fields; `raw_response` holds what the provider actually returned, for debugging.
 
+Both this table and `document_reviews` carry `organization_id` directly rather than reaching through `documents` for it. This paragraph originally described their policies as "member via document" — that was changed during implementation to match `CLAUDE.md`'s rule that every tenant table holds its own tenant key. A policy that joins to another table to find the tenant is slower, harder to read, and one refactor away from being wrong.
+
 ### `document_reviews`
 `id uuid pk` · `document_id` · `reviewer_id → profiles` · `action review_action` · `before jsonb` · `after jsonb` · `note text` · `created_at`
 
@@ -119,8 +121,8 @@ With a `role_in(org uuid)` companion returning the caller's `member_role`.
 | `memberships` | member | owner, manager | owner |
 | `subjects` | member | owner, manager | owner, manager |
 | `documents` | member | member (insert), owner/manager or responsible user (update) | owner, manager |
-| `extractions` | member via document | service role only | none |
-| `document_reviews` | member via document | owner, manager | none |
+| `extractions` | member (own `organization_id`) | **no client policy** — written by the job with the secret key | none |
+| `document_reviews` | member (own `organization_id`) | owner, manager, or the responsible user, via `can_edit_document()` | none (a correctable audit record is not one) |
 | `reminders` | member via document | service role only; acknowledge via a `security definer` function | none |
 | `notifications` | own rows only | service role only | own rows |
 | `audit_log` | owner, manager | **no policy at all** — the `SECURITY DEFINER` trigger inserts without needing one | none |

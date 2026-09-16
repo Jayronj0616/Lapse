@@ -4,6 +4,7 @@ import { MobileTopBar } from "@/components/layout/MobileTopBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { requireUser } from "@/lib/services/auth.service";
 import * as organizationService from "@/lib/services/organization.service";
+import * as reviewService from "@/lib/services/review.service";
 
 export default async function OrganizationLayout({
   children,
@@ -24,7 +25,10 @@ export default async function OrganizationLayout({
   // Drives which navigation the viewer sees. Never an authorization decision
   // on its own — every policy is enforced in the database regardless of what
   // the sidebar chose to render.
-  const role = await organizationService.roleIn(organization.id);
+  const [role, reviewCount] = await Promise.all([
+    organizationService.roleIn(organization.id),
+    reviewService.countPending(organization.id),
+  ]);
 
   return (
     <div className="flex min-h-full flex-1">
@@ -32,6 +36,7 @@ export default async function OrganizationLayout({
         organization={organization}
         role={role}
         userEmail={user.email ?? ""}
+        reviewCount={reviewCount}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar organization={organization} />

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { inngest } from "@/lib/jobs/client";
 import { requireUser } from "@/lib/services/auth.service";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -108,7 +109,7 @@ export async function create(input: {
   documentNumber: string | null;
   issuer: string | null;
   issueDate: string | null;
-  expiryDate: string;
+  expiryDate: string | null;
   file: File;
 }): Promise<DocumentRow> {
   const user = await requireUser();
@@ -129,10 +130,13 @@ export async function create(input: {
     throw new DocumentError(`Could not upload the file: ${uploadError.message}`);
   }
 
-  // Phase 2 has no extraction, so the expiry is typed by a person and the
-  // status follows directly from it. Phase 3 replaces this with the confidence
-  // gate, which can also land a document in needs_review.
-  const status: DocumentStatus = statusFromExpiry(input.expiryDate) ?? "active";
+  // Two paths, and only two. An expiry the uploader typed is authoritative —
+  // the document is tracked immediately and no model is consulted, because
+  // there is nothing to work out. Blank means the document waits in
+  // `processing` while the extraction job reads it.
+  const status: DocumentStatus = input.expiryDate
+    ? (statusFromExpiry(input.expiryDate) ?? "active")
+    : "processing";
 
   const { data, error } = await supabase
     .from("documents")
@@ -160,6 +164,27 @@ export async function create(input: {
     await supabase.storage.from(BUCKET).remove([storagePath]);
 
     throw new DocumentError(`Could not save the document: ${error.message}`);
+  }
+
+  if (status === "processing") {
+    // Fired after the row exists, so the job always has something to load.
+    //
+    // A failure to enqueue is logged rather than thrown: the document and its
+    // file are saved and perfectly valid, and destroying a successful upload
+    // because a queue was briefly unreachable would be the worse outcome. The
+    // document sits in `processing`, which the dashboard surfaces, and the
+    // daily sweep retries stalled extractions.
+    try {
+      await inngest.send({
+        name: "lapse/document.uploaded",
+        data: { documentId: data.id, organizationId: input.organizationId },
+      });
+    } catch (error) {
+      console.error(
+        `[documents] could not enqueue extraction for ${data.id}:`,
+        error,
+      );
+    }
   }
 
   return data;

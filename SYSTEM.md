@@ -223,3 +223,68 @@ Decisions worth not re-litigating:
 Also: `documents` carries a CHECK constraint rejecting an expiry before its issue date. That is a data error whether a person typed it or a model hallucinated it, so it is refused at the source rather than caught in two places later.
 
 **Blocked, and not on us:** `supabase db push` fails with a 403 from the management API's "Initialising login role" step for both Jayron and this session — his access token lacks privileges on that endpoint. The same account-level problem blocks `supabase gen types`. Workaround is to push straight at the database with `--db-url` using the connection URI from the dashboard, which skips the management call entirely.
+
+---
+
+## ⚠ PENDING MIGRATIONS — read before running the app
+
+Migrations `0002` and `0003` are written and committed but **not applied**. The app builds, but every screen past the dashboard will error until they are.
+
+`supabase db push` is blocked by a 403 from the management API's "Initialising login role" step — an account-level permission problem, not a local one; it fails identically for Jayron and for Claude. The same problem blocks `supabase gen types`. The direct database host `db.<ref>.supabase.co` is IPv6-only and unreachable from Jayron's network, so `--db-url` against it also fails.
+
+**To apply them:** open the Supabase dashboard → SQL Editor, and run each file's contents in order, checking for a green success after each:
+
+1. `supabase/migrations/0002_subjects_documents_audit.sql`
+2. `supabase/migrations/0003_extractions_and_reviews.sql`
+
+Then register both so the CLI does not try to re-apply them later:
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0002', 'subjects_documents_audit'),
+  ('0003', 'extractions_and_reviews');
+```
+
+**To verify** without the CLI — this uses only the REST API and the secret key:
+
+```bash
+for T in subjects documents audit_log extractions document_reviews; do
+  curl -s -o /dev/null -w "$T %{http_code}\n" \
+    "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/$T?select=id&limit=1" \
+    -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY"
+done
+```
+
+`200` means the table exists; `404` means that migration did not land.
+
+**Still worth fixing properly:** the CLI's 403. Until it is resolved, every migration is a manual paste and `types.ts` stays hand-maintained.
+
+---
+
+**Phases 3 and 4 built — extraction and the review queue.**
+
+Migration `0003` adds `extraction_status` and `review_action`, the `extractions` and `document_reviews` tables, and the `can_edit_document()` helper.
+
+Upload now has exactly two paths, and deliberately no third:
+
+- **An expiry date typed by the uploader is authoritative.** The document is tracked immediately and no model is consulted, because there is nothing to work out.
+- **Left blank**, the document goes to `processing`, an Inngest event fires, and the model reads it. No path exists where a model second-guesses a value a person entered.
+
+Decisions worth not re-litigating:
+
+- **The gate fails toward the review queue, always.** A document queued unnecessarily costs someone ten seconds; a bad expiry waved through costs a fine. It refuses on low confidence, a missing expiry, an expiry before issue, an implausible year, or a document type that disagrees with what the uploader filed it as.
+- **Extracted values are written to the document even when the gate refuses.** The reviewer needs to see what the model read in order to judge it. What stops an unreviewed value being acted upon is the `needs_review` status, not the absence of the value.
+- **`extractions` keeps one row per attempt, including failures.** That is what makes "how often is this provider wrong, and on what" answerable later. A table holding only the winning attempt would make the review queue look like unexplained busywork.
+- **The review queue is ordered oldest first, not by confidence.** Sorting by confidence produces a queue where the least certain documents are never reached.
+- **`approved` versus `corrected` is derived by comparing to what is stored**, not from which button was pressed. Asking a reviewer to also classify their own action would only add a way for the record to be wrong.
+- **Reviewing takes the same authority as editing the document** — owner, manager, or the responsible user. The first draft of `0003` let any member insert a review they would then have been unable to apply; `can_edit_document()` aligns the two.
+- **Providers are called with `fetch`, not an SDK.** The surface is small, Inngest already owns retries, and one fewer dependency is one fewer breaking change on a provider we fully expect to swap.
+- **The extraction prompt states that null is an acceptable answer**, and anchors each confidence band. Without the first, models invent dates; without the second, everything comes back 0.95.
+- **Azure Foundry rejects PDFs up front** rather than half-processing them — the vision chat API takes images only. A silent failure on one file type is far more confusing than an explicit one.
+
+Framework notes for whoever picks this up:
+
+- **Inngest v4 changed `createFunction` to two arguments**, with `triggers: [{ event }]` inside the options object rather than v3's three-argument form.
+- **`EventSchemas` no longer exists in v4.** Rather than guess at its replacement, `lib/jobs/client.ts` exports an `eventData()` helper that narrows a payload at the handler boundary. The event contract still lives in one file; it is enforced one layer later. Worth revisiting once the v4 schema API is confirmed from the docs.
+
+Not built yet: Phase 5 (the daily sweep, reminders, `job_runs` heartbeat, email) and Phase 6 (the dashboard's stale-heartbeat exception). `extraction.service.ts` was never created — the logic lives in the job, which is its only caller, and a service wrapping a single job step would have been indirection for its own sake.

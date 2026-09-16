@@ -39,6 +39,10 @@ export type DocumentStatus =
   | "extraction_failed"
   | "archived";
 
+export type ExtractionStatus = "pending" | "succeeded" | "failed";
+
+export type ReviewAction = "approved" | "corrected" | "rejected";
+
 export type Database = {
   public: {
     Tables: {
@@ -200,6 +204,66 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      extractions: {
+        Row: {
+          id: string;
+          organization_id: string;
+          document_id: string;
+          provider: string;
+          model: string;
+          attempt: number;
+          status: ExtractionStatus;
+          confidence: number | null;
+          extracted: Json | null;
+          raw_response: Json | null;
+          error: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          document_id: string;
+          provider: string;
+          model: string;
+          attempt?: number;
+          status?: ExtractionStatus;
+          confidence?: number | null;
+          extracted?: Json | null;
+          raw_response?: Json | null;
+          error?: string | null;
+          created_at?: string;
+        };
+        // No client write policy — written by the job with the secret key.
+        Update: never;
+        Relationships: [];
+      };
+      document_reviews: {
+        Row: {
+          id: string;
+          organization_id: string;
+          document_id: string;
+          reviewer_id: string | null;
+          action: ReviewAction;
+          before: Json | null;
+          after: Json | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          document_id: string;
+          reviewer_id: string;
+          action: ReviewAction;
+          before?: Json | null;
+          after?: Json | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        // Reviews are never edited. A correctable audit record is not one.
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
     Functions: {
@@ -216,6 +280,8 @@ export type Database = {
       subject_kind: SubjectKind;
       document_type: DocumentType;
       document_status: DocumentStatus;
+      extraction_status: ExtractionStatus;
+      review_action: ReviewAction;
     };
     CompositeTypes: Record<never, never>;
   };
@@ -232,3 +298,5 @@ export type Membership = Tables<"memberships">;
 export type Subject = Tables<"subjects">;
 export type DocumentRow = Tables<"documents">;
 export type AuditEntry = Tables<"audit_log">;
+export type Extraction = Tables<"extractions">;
+export type DocumentReview = Tables<"document_reviews">;

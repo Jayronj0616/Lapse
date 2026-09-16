@@ -35,8 +35,9 @@ export default async function UploadDocumentPage({
         Add document
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Attach the file and enter the dates yourself. Reading them off the
-        document automatically arrives in a later phase.
+        Attach the file. Leave the dates blank and Lapse reads them off the
+        document itself — anything it is unsure about goes to review rather
+        than being trusted.
       </p>
 
       <div className="mt-8">

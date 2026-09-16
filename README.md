@@ -92,8 +92,10 @@ pnpm dev
 
 ## Status
 
-**Phase 1 complete** — authentication, organizations, and the application shell, with migration `0001` applied to the database.
+**Phases 1–4 built.** Authentication and organizations; subjects and documents with manual expiry entry; extraction behind a swappable provider interface with a confidence gate; and a human review queue.
 
-Next is Phase 2: subjects and document upload, still with no extraction — the point of that phase is a working manual expiry tracker, so the system is useful before a model is involved at all.
+⚠ **Migrations `0002` and `0003` are written but not yet applied** — see the pending-migrations section in `SYSTEM.md`. The app builds, but screens past the dashboard will error until they are run.
+
+Next is Phase 5: the daily sweep, the reminder ladder, and the `job_runs` heartbeat that doubles as the keepalive.
 
 See `SYSTEM.md` for the build order and the running progress log, and `STRUCTURE.md` for what exists file by file.

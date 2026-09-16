@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -22,10 +23,12 @@ export function Sidebar({
   organization,
   role,
   userEmail,
+  reviewCount,
 }: {
   organization: Organization;
   role: MemberRole | null;
   userEmail: string;
+  reviewCount: number;
 }) {
   const base = `/${organization.slug}`;
   const canSeeAudit = role === "owner" || role === "manager";
@@ -50,6 +53,9 @@ export function Sidebar({
         </NavLink>
         <NavLink href={`${base}/documents`} icon={FileText}>
           Documents
+        </NavLink>
+        <NavLink href={`${base}/review`} icon={ClipboardCheck} badge={reviewCount}>
+          Review
         </NavLink>
         <NavLink href={`${base}/subjects`} icon={Truck}>
           Subjects

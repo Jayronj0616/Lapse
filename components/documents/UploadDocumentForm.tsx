@@ -129,14 +129,20 @@ export function UploadDocumentForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="expiryDate">Expires</Label>
+          <Label htmlFor="expiryDate">
+            Expires <span className="text-muted-foreground">(optional)</span>
+          </Label>
           <Input
             id="expiryDate"
             name="expiryDate"
             type="date"
-            required
             aria-invalid={Boolean(state.fieldErrors?.expiryDate)}
+            aria-describedby="expiry-hint"
           />
+          <p id="expiry-hint" className="text-sm text-muted-foreground">
+            Leave blank and Lapse will read it off the document. Anything you
+            enter here is taken as correct and skips that.
+          </p>
           <FieldError messages={state.fieldErrors?.expiryDate} />
         </div>
       </div>
