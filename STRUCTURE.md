@@ -117,9 +117,9 @@ lapse/
 │   ├── config.toml                           OK  supabase init
 │   └── migrations/
 │       ├── 0001_orgs_and_auth.sql            OK  applied
-│       ├── 0002_subjects_documents_audit.sql WIP written, not yet applied
-│       ├── 0003_extractions_and_reviews.sql WIP written, not yet applied
-│       ├── 0004_reminders_notifications_jobs.sql WIP written, not yet applied
+│       ├── 0002_subjects_documents_audit.sql OK  applied
+│       ├── 0003_extractions_and_reviews.sql OK  applied
+│       ├── 0004_reminders_notifications_jobs.sql OK  applied
 │       └── 0005_audit_and_jobs.sql           —
 │
 ├── .github/workflows/keepalive.yml           OK  backup sweep trigger, offset by 90min

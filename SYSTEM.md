@@ -226,25 +226,17 @@ Also: `documents` carries a CHECK constraint rejecting an expiry before its issu
 
 ---
 
-## ⚠ PENDING MIGRATIONS — read before running the app
+## Applying migrations — the CLI is blocked, use the SQL Editor
 
-Migrations `0002`, `0003` and `0004` are written and committed but **not applied**. The app builds, but every screen past the dashboard will error until they are.
+**All migrations through `0004` are applied** as of 2026-09-17. This section stays because the underlying problem has not gone away and the next migration will hit it too.
 
 `supabase db push` is blocked by a 403 from the management API's "Initialising login role" step — an account-level permission problem, not a local one; it fails identically for Jayron and for Claude. The same problem blocks `supabase gen types`. The direct database host `db.<ref>.supabase.co` is IPv6-only and unreachable from Jayron's network, so `--db-url` against it also fails.
 
-**To apply them:** open the Supabase dashboard → SQL Editor, and run each file's contents in order, checking for a green success after each. Order matters — each depends on the one before:
-
-1. `supabase/migrations/0002_subjects_documents_audit.sql`
-2. `supabase/migrations/0003_extractions_and_reviews.sql`
-3. `supabase/migrations/0004_reminders_notifications_jobs.sql`
-
-Then register all three so the CLI does not try to re-apply them later:
+**The procedure for any new migration:** open the Supabase dashboard → SQL Editor, paste the file's *entire* contents, Run, confirm green. A partial paste fails on the first `create type`. Then register it so the CLI does not try to re-apply it later:
 
 ```sql
-insert into supabase_migrations.schema_migrations (version, name) values
-  ('0002', 'subjects_documents_audit'),
-  ('0003', 'extractions_and_reviews'),
-  ('0004', 'reminders_notifications_jobs');
+insert into supabase_migrations.schema_migrations (version, name)
+values ('000N', 'migration_name_without_prefix');
 ```
 
 **To verify** without the CLI — this uses only the REST API and the secret key:
@@ -257,7 +249,7 @@ for T in subjects documents audit_log extractions document_reviews reminders not
 done
 ```
 
-`200` means the table exists; `404` means that migration did not land.
+`200` means the table exists; `404` means that migration did not land. This is the only verification path available while the CLI is broken, and it needs nothing but the secret key.
 
 **Still worth fixing properly:** the CLI's 403. Until it is resolved, every migration is a manual paste and `types.ts` stays hand-maintained.
 
@@ -317,3 +309,9 @@ Deployment requirements this phase introduces, none of which are in the repo:
 - A verified sender domain in Resend
 
 Phases 1–5 are complete in code. What remains is Phase 6 polish (seeded demo data, a members/invite flow, the org switcher that invites make meaningful) and, before any of it runs, the three pending migrations.
+
+### 2026-09-17 — migrations 0002–0004 applied
+
+Run by hand through the Supabase SQL Editor, since `supabase db push` is still blocked by the management-API 403. All eleven tables and the private `documents` bucket verified live via the REST check above.
+
+The database is now fully in step with the code. The application is walkable end to end for everything that does not need a model: sign up, create an organization, add subjects, file documents with typed dates, and see them triaged on the dashboard. Extraction and reminder email remain untested — they need `GEMINI_API_KEY`, `RESEND_API_KEY`, `REMINDER_FROM_EMAIL` and the Inngest keys.

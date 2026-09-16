@@ -94,7 +94,7 @@ pnpm dev
 
 **Phases 1–5 built.** Authentication and organizations; subjects and documents; extraction behind a swappable provider interface with a confidence gate; a human review queue; and the daily sweep that sends escalating reminders and doubles as the database keepalive.
 
-⚠ **Migrations `0002`, `0003` and `0004` are written but not yet applied** — see the pending-migrations section in `SYSTEM.md`. The app builds, but screens past the dashboard will error until they are run.
+All migrations through `0004` are applied. Extraction and email are written but untested — they need `GEMINI_API_KEY`, `RESEND_API_KEY` and the Inngest keys set.
 
 Next is Phase 6: seeded demo data, a member invite flow, and the organization switcher that invites finally make meaningful.
 
