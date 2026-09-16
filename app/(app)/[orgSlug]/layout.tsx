@@ -21,9 +21,18 @@ export default async function OrganizationLayout({
   // outsider nothing about which organizations exist.
   if (!organization) notFound();
 
+  // Drives which navigation the viewer sees. Never an authorization decision
+  // on its own — every policy is enforced in the database regardless of what
+  // the sidebar chose to render.
+  const role = await organizationService.roleIn(organization.id);
+
   return (
     <div className="flex min-h-full flex-1">
-      <Sidebar organization={organization} userEmail={user.email ?? ""} />
+      <Sidebar
+        organization={organization}
+        role={role}
+        userEmail={user.email ?? ""}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar organization={organization} />
         {children}

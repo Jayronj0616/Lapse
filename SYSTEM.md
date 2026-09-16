@@ -203,3 +203,23 @@ Two notes for anyone picking this up:
 - The GitHub repository description and topics are set through the GitHub UI, not from this repo, so they are not version-controlled and will not appear in any diff.
 
 Phase 1 is complete and pushed. The only unverified path is the end-to-end sign-up → create organization → dashboard run, which needs a real account and password.
+
+**Phase 2 (manual tracker) built — migration written, not yet applied.**
+
+The system is now a working expiry tracker with no model involved at all: subjects, document upload with typed-in dates, a document list sorted by expiry, a detail view, an exceptions dashboard grouped by urgency, and an audit log. Eleven routes, build clean.
+
+Migration `0002` adds the `subject_kind`, `document_type` and `document_status` enums; the `subjects` and `documents` tables; the private `documents` storage bucket; and `audit_log`.
+
+Decisions worth not re-litigating:
+
+- **Audit is written by triggers, not by services.** `record_audit()` fires on `documents` and `subjects` and stamps `auth.uid()`. A service that has to remember to log will eventually forget, and a log with gaps is worse than no log — it implies that a missing row means nothing happened. `audit_log` has a read policy and no insert policy at all; the `SECURITY DEFINER` trigger does not need one, so rows cannot be forged from the app.
+- **`audit_log` moved from migration `0005` into `0002`**, because Phase 2 writes audit rows. `SCHEMA.md` updated.
+- **Storage isolation rides on the object path.** Keys are `{organization_id}/{uuid}.{ext}` and the `storage.objects` policies check that first segment. The path format is load-bearing, not cosmetic.
+- **Dates never touch local time.** `lib/utils/dates.ts` works in UTC calendar days throughout. A document expiring on the 30th reading as the 29th is the difference between "renew today" and "you are already operating illegally", and that class of bug comes entirely from letting a timezone offset into date-only math.
+- **`expiring` is a stored status, not a derived one**, so the dashboard and the document list cannot disagree about what counts as expiring. `statusFromExpiry` and `toneFor` in `lib/utils/status.ts` are the only places that decide, and `StatusBadge` is the only component that maps a status to a color.
+- **Native `<select>` rather than shadcn's Radix Select.** The Radix one is client-only and does not post in a plain form action without a hidden-input workaround. Not worth the machinery for three static option lists.
+- **The audit nav link is hidden from staff.** RLS would return them an empty list anyway; a link to a page that is empty by policy is a dead end, not a feature.
+
+Also: `documents` carries a CHECK constraint rejecting an expiry before its issue date. That is a data error whether a person typed it or a model hallucinated it, so it is refused at the source rather than caught in two places later.
+
+**Blocked, and not on us:** `supabase db push` fails with a 403 from the management API's "Initialising login role" step for both Jayron and this session — his access token lacks privileges on that endpoint. The same account-level problem blocks `supabase gen types`. Workaround is to push straight at the database with `--db-url` using the connection URI from the dashboard, which skips the management call entirely.

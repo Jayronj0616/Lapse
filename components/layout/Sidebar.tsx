@@ -1,21 +1,35 @@
-import { LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
+import {
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  ScrollText,
+  ShieldCheck,
+  Truck,
+} from "lucide-react";
 
 import { NavLink } from "@/components/layout/NavLink";
 import { signOutAction } from "@/lib/actions/auth.actions";
-import type { Organization } from "@/lib/supabase/types";
+import type { MemberRole, Organization } from "@/lib/supabase/types";
 
 /**
- * Only routes that exist appear here. As each phase lands its screens —.
- * documents, review, subjects, audit, settings — the link is added then, not
- * now as a dead entry.
+ * Only routes that exist appear here, and only those the viewer can actually
+ * use. The audit log is readable by owners and managers, so staff do not get a
+ * link to a page that would render empty for them by policy.
+ *
+ * Review, settings and members are added by the phases that build them.
  */
 export function Sidebar({
   organization,
+  role,
   userEmail,
 }: {
   organization: Organization;
+  role: MemberRole | null;
   userEmail: string;
 }) {
+  const base = `/${organization.slug}`;
+  const canSeeAudit = role === "owner" || role === "manager";
+
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
       <div className="flex items-center gap-2 px-4 py-4">
@@ -31,12 +45,20 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        <NavLink
-          href={`/${organization.slug}/dashboard`}
-          icon={LayoutDashboard}
-        >
+        <NavLink href={`${base}/dashboard`} icon={LayoutDashboard}>
           Dashboard
         </NavLink>
+        <NavLink href={`${base}/documents`} icon={FileText}>
+          Documents
+        </NavLink>
+        <NavLink href={`${base}/subjects`} icon={Truck}>
+          Subjects
+        </NavLink>
+        {canSeeAudit ? (
+          <NavLink href={`${base}/audit`} icon={ScrollText}>
+            Audit log
+          </NavLink>
+        ) : null}
       </nav>
 
       <div className="border-t p-3">

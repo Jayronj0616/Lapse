@@ -82,7 +82,11 @@ In-app delivery. Separate from `reminders` because one reminder can fan out to s
 ### `audit_log`
 `id uuid pk` · `organization_id` · `actor_id → profiles (nullable)` · `action text` · `entity_type text` · `entity_id uuid` · `before jsonb` · `after jsonb` · `created_at`
 
-`actor_id` is nullable because background jobs act without a user. Written for: document upload, review decision, reminder acknowledgment, role change, member invite/removal, document archive/delete.
+`actor_id` is nullable because background jobs act without a user.
+
+**Written by database triggers, not by application code.** `record_audit()` fires after insert, update or delete on `documents` and `subjects`, capturing `to_jsonb(old)` and `to_jsonb(new)` and stamping `auth.uid()` as the actor. A service that has to *remember* to log is a service that will eventually forget, and a log with gaps is worse than no log — it invites the assumption that a missing row means nothing happened. Putting a new table under audit is one `create trigger`, not an edit to every service that touches it.
+
+Shipped in migration `0002`, not the later one originally planned here, because Phase 2 writes audit rows.
 
 ### `job_runs`
 `id uuid pk` · `job_name text` · `status job_status` · `started_at` · `finished_at` · `items_processed int` · `error text` · `created_at`
@@ -119,7 +123,7 @@ With a `role_in(org uuid)` companion returning the caller's `member_role`.
 | `document_reviews` | member via document | owner, manager | none |
 | `reminders` | member via document | service role only; acknowledge via a `security definer` function | none |
 | `notifications` | own rows only | service role only | own rows |
-| `audit_log` | owner, manager | service role only | none |
+| `audit_log` | owner, manager | **no policy at all** — the `SECURITY DEFINER` trigger inserts without needing one | none |
 | `job_runs` | authenticated read | service role only | none |
 
 Rows written exclusively by background jobs have no user-facing insert policy at all. If a client can't write it, a client bug can't forge it.
@@ -146,3 +150,17 @@ active ──(expiry - today) <= 60──> expiring ──(today > expiry)──
 
 - Should `document_type` stay an enum or become a table? An enum is simpler now but means a migration to add a fourth type. Revisit when a fourth type is actually requested.
 - Renewal history: when a document is renewed, is it a new row linked to the old one, or an update in place? Leaning toward a new row with a `replaces_document_id`, but not needed for v1.
+
+---
+
+## Storage
+
+One private bucket, `documents`, created in migration `0002`. 10 MB per file, limited to PDF and common image types.
+
+**Private, not public.** Files are reached through signed URLs generated per request and expiring in five minutes. An insurance policy or a licence scan should not sit on a guessable address indefinitely, and a public bucket has no way to take that back.
+
+**Isolation rides on the object path.** Every key is `{organization_id}/{uuid}.{ext}`, and the policies on `storage.objects` check that first path segment against `is_member_of()`. A member cannot write outside their own organization's folder, and cannot read another one's. Deletes additionally require owner or manager.
+
+This means the path format is load-bearing, not cosmetic. Anything that writes to this bucket must keep the organization id as the first segment, or the policy will reject it — which is the intended failure mode.
+
+**Orphan cleanup.** `document.service.ts` uploads the file before inserting the row, because the row needs the path. If the insert then fails, the service removes the uploaded object rather than leaving a file nothing references.
