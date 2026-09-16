@@ -92,10 +92,10 @@ pnpm dev
 
 ## Status
 
-**Phases 1–4 built.** Authentication and organizations; subjects and documents with manual expiry entry; extraction behind a swappable provider interface with a confidence gate; and a human review queue.
+**Phases 1–5 built.** Authentication and organizations; subjects and documents; extraction behind a swappable provider interface with a confidence gate; a human review queue; and the daily sweep that sends escalating reminders and doubles as the database keepalive.
 
-⚠ **Migrations `0002` and `0003` are written but not yet applied** — see the pending-migrations section in `SYSTEM.md`. The app builds, but screens past the dashboard will error until they are run.
+⚠ **Migrations `0002`, `0003` and `0004` are written but not yet applied** — see the pending-migrations section in `SYSTEM.md`. The app builds, but screens past the dashboard will error until they are run.
 
-Next is Phase 5: the daily sweep, the reminder ladder, and the `job_runs` heartbeat that doubles as the keepalive.
+Next is Phase 6: seeded demo data, a member invite flow, and the organization switcher that invites finally make meaningful.
 
 See `SYSTEM.md` for the build order and the running progress log, and `STRUCTURE.md` for what exists file by file.

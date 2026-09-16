@@ -1,0 +1,39 @@
+# Backup trigger for the daily sweep.
+#
+# This is not redundancy for its own sake. The sweep is also what keeps the
+# free-tier Supabase project from pausing after a week of inactivity, so if it
+# stops running the database goes to sleep and the app stops working. A trigger
+# that lives on the same platform as the app fails at the same time as the app;
+# this one does not.
+#
+# The sweep is idempotent — reminders are unique on (document_id, tier,
+# channel) — so both triggers firing on the same day is harmless.
+#
+# Requires two repository secrets: APP_URL and CRON_SECRET.
+
+name: Daily sweep (backup trigger)
+
+on:
+  schedule:
+    # 03:30 UTC, deliberately offset from Vercel Cron's 02:00 so the two do not
+    # race, and late enough to act as a catch-up if Vercel's run was missed.
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the sweep endpoint
+        run: |
+          status=$(curl -sS -o /tmp/body.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/sweep")
+
+          echo "HTTP $status"
+          cat /tmp/body.json
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Sweep returned $status"
+            exit 1
+          fi

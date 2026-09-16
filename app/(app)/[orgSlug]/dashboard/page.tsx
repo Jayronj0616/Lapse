@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 
 import { ExceptionGroup } from "@/components/dashboard/ExceptionGroup";
+import { HeartbeatIndicator } from "@/components/dashboard/HeartbeatIndicator";
 import { buttonVariants } from "@/components/ui/button";
 import * as documentService from "@/lib/services/document.service";
+import * as jobService from "@/lib/services/job.service";
 import * as organizationService from "@/lib/services/organization.service";
 import { daysUntil } from "@/lib/utils/dates";
 
@@ -32,7 +34,10 @@ export default async function DashboardPage({
   const organization = await organizationService.getBySlug(orgSlug);
   if (!organization) notFound();
 
-  const documents = await documentService.listForOrganization(organization.id);
+  const [documents, heartbeat] = await Promise.all([
+    documentService.listForOrganization(organization.id),
+    jobService.sweepHeartbeat(),
+  ]);
 
   const tracked = documents.filter(
     (document) =>
@@ -87,6 +92,10 @@ export default async function DashboardPage({
           <Plus className="size-4" />
           Add document
         </Link>
+      </div>
+
+      <div className="mt-6">
+        <HeartbeatIndicator heartbeat={heartbeat} />
       </div>
 
       {nothingToDo ? (

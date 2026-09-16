@@ -27,9 +27,10 @@ lapse/
 │   │       ├── review/page.tsx               OK  the needs_review queue
 │   │       ├── subjects/page.tsx             —   vehicles and people
 │   │       ├── audit/page.tsx                OK  trigger-written log, owner/manager only
+│   │       ├── notifications/page.tsx        OK  your reminders, acknowledge here
 │   │       └── settings/                     —   org settings, members
 │   └── api/
-│       ├── cron/sweep/route.ts               —   daily sweep, checks CRON_SECRET
+│       ├── cron/sweep/route.ts               OK  daily sweep, checks CRON_SECRET
 │       └── inngest/route.ts                  OK  serve(), signature-verified
 │
 ├── components/
@@ -53,7 +54,7 @@ lapse/
 │   │   └── ReviewCard.tsx                    OK  source beside fields, approve or reject
 │   └── dashboard/
 │       ├── ExceptionGroup.tsx                OK  renders nothing when empty
-│       └── HeartbeatIndicator.tsx            —   Phase 5
+│       └── HeartbeatIndicator.tsx            OK  the system noticing its own silence
 │
 ├── lib/
 │   ├── supabase/
@@ -66,14 +67,15 @@ lapse/
 │   ├── services/
 │   │   ├── auth.service.ts                   OK  sign in/up/out, requireUser
 │   │   ├── organization.service.ts           OK  listMine, getBySlug, roleIn, create
-│   │   ├── membership.service.ts             —
+│   │   ├── membership.service.ts             —   invites, not yet built
 │   │   ├── subject.service.ts                OK  list, get, create
 │   │   ├── document.service.ts               OK  list, get, create, signed URLs
 │   │   ├── extraction.service.ts             —   folded into the job; no separate service
 │   │   ├── review.service.ts                 OK  listPending, countPending, submit, reject
-│   │   ├── reminder.service.ts               —   ladder, escalation
-│   │   ├── notification.service.ts           —
-│   │   └── audit.service.ts                  OK  read-only by design
+│   │   ├── reminder.service.ts               —   folded into lib/jobs/sweep.ts
+│   │   ├── notification.service.ts           OK  list, countUnread, markRead, acknowledge
+│   │   ├── audit.service.ts                  OK  read-only by design
+│   │   └── job.service.ts                    OK  sweep heartbeat + staleness
 │   ├── actions/
 │   │   ├── form-state.ts                     OK  shared FormState, kept out of "use server" files
 │   │   ├── form-data.ts                      OK  FormData "" → null, so blank means unknown
@@ -82,7 +84,7 @@ lapse/
 │   │   ├── document.actions.ts               OK
 │   │   ├── subject.actions.ts                OK
 │   │   ├── review.actions.ts                 OK
-│   │   └── reminder.actions.ts               —   acknowledge
+│   │   └── notification.actions.ts           OK  acknowledge, mark read
 │   ├── validations/
 │   │   ├── auth.schema.ts                    OK
 │   │   ├── organization.schema.ts            OK
@@ -99,8 +101,10 @@ lapse/
 │   ├── jobs/
 │   │   ├── client.ts                         OK  Inngest client + event contract
 │   │   ├── extract-document.job.ts           OK  lapse/document.uploaded, 3 retries
-│   │   └── sweep.ts                          —   called by the cron route
-│   ├── email/                                —   resend.ts + templates
+│   │   └── sweep.ts                          OK  statuses, retries, reminders, escalation
+│   ├── email/
+│   │   ├── resend.ts                         OK  returns a result, never throws
+│   │   └── templates.ts                      OK  plain text on purpose
 │   ├── utils/
 │   │   ├── slug.ts                           OK  slugify + collision suffix
 │   │   ├── dates.ts                          OK  UTC calendar days, no TZ drift
@@ -115,10 +119,11 @@ lapse/
 │       ├── 0001_orgs_and_auth.sql            OK  applied
 │       ├── 0002_subjects_documents_audit.sql WIP written, not yet applied
 │       ├── 0003_extractions_and_reviews.sql WIP written, not yet applied
-│       ├── 0004_reminders_and_notifications.sql —
+│       ├── 0004_reminders_notifications_jobs.sql WIP written, not yet applied
 │       └── 0005_audit_and_jobs.sql           —
 │
-├── .github/workflows/keepalive.yml           —   backup sweep trigger
+├── .github/workflows/keepalive.yml           OK  backup sweep trigger, offset by 90min
+├── vercel.json                               OK  Vercel Cron, 02:00 UTC daily
 ├── .claude/launch.json                       OK  dev server config
 ├── .env.example                              OK  committed on purpose
 │

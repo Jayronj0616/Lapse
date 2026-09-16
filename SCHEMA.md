@@ -74,7 +74,9 @@ What a human did to a `needs_review` document. Storing both `before` and `after`
 `id uuid pk` · `organization_id` · `document_id` · `tier reminder_tier` · `channel reminder_channel` · `scheduled_for date` · `sent_at timestamptz` · `acknowledged_at timestamptz` · `acknowledged_by → profiles` · `escalated_at timestamptz` · `created_at`
 Unique on `(document_id, tier, channel)`.
 
-That unique constraint is the idempotency guard. The sweep can run twice in one day and the second run inserts nothing.
+That unique constraint is the idempotency guard. The sweep can run twice in one day — Vercel Cron and the GitHub Actions backup both firing — and the second run inserts nothing.
+
+It also means **each tier fires exactly once, including `overdue`**. This is a deliberate departure from the original "then daily once expired" plan: an expired document already sits permanently in the dashboard's Expired group, and a daily email about it only teaches people to filter the sender. The sweep emits only the *most urgent* tier that currently applies, so a document filed three days before it expires gets one "within a week" notice rather than the whole ladder at once.
 
 ### `notifications`
 `id uuid pk` · `organization_id` · `user_id → profiles` · `reminder_id → reminders (nullable)` · `title text` · `body text` · `href text` · `read_at timestamptz` · `created_at`
@@ -93,7 +95,11 @@ Shipped in migration `0002`, not the later one originally planned here, because 
 ### `job_runs`
 `id uuid pk` · `job_name text` · `status job_status` · `started_at` · `finished_at` · `items_processed int` · `error text` · `created_at`
 
-Not tenant-scoped — it's system-level. Serves three purposes: the dashboard's "last sweep ran N hours ago", the stale-heartbeat exception, and the guaranteed daily write that keeps Supabase from pausing the project.
+Not tenant-scoped — it's system-level, and readable by any signed-in user because every organization needs to know whether the automation is alive.
+
+It serves three purposes at once: the dashboard's "daily check ran N hours ago", the stale-heartbeat exception, and a guaranteed daily write that stops Supabase pausing the free-tier project.
+
+The row is inserted **before** the sweep does any work, not after. An "exit early if there is nothing to do" optimisation would break the keepalive on exactly the quiet weeks where it matters most. Writing it first also means a crash leaves a row stuck in `running`, which the dashboard detects as stale — writing only on success would make failures invisible, and a silent deadline-watcher looks identical to a calm one.
 
 ---
 
@@ -144,7 +150,9 @@ processing ──extract──> needs_review ──review──> active
 active ──(expiry - today) <= 60──> expiring ──(today > expiry)──> expired
 ```
 
-`archived` is terminal and set manually. Reminder tiers fire off the day gap: 60, 30, 7, 1, then daily once `expired`.
+`archived` is terminal — set by a reviewer rejecting a document, or manually.
+
+Reminder tiers fire off the day gap at 60, 30, 7 and 1 days, then once on expiry. A reminder in the `t7`, `t1` or `overdue` tiers that goes unacknowledged for three days escalates to the organization's owners.
 
 ---
 

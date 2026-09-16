@@ -228,27 +228,29 @@ Also: `documents` carries a CHECK constraint rejecting an expiry before its issu
 
 ## ⚠ PENDING MIGRATIONS — read before running the app
 
-Migrations `0002` and `0003` are written and committed but **not applied**. The app builds, but every screen past the dashboard will error until they are.
+Migrations `0002`, `0003` and `0004` are written and committed but **not applied**. The app builds, but every screen past the dashboard will error until they are.
 
 `supabase db push` is blocked by a 403 from the management API's "Initialising login role" step — an account-level permission problem, not a local one; it fails identically for Jayron and for Claude. The same problem blocks `supabase gen types`. The direct database host `db.<ref>.supabase.co` is IPv6-only and unreachable from Jayron's network, so `--db-url` against it also fails.
 
-**To apply them:** open the Supabase dashboard → SQL Editor, and run each file's contents in order, checking for a green success after each:
+**To apply them:** open the Supabase dashboard → SQL Editor, and run each file's contents in order, checking for a green success after each. Order matters — each depends on the one before:
 
 1. `supabase/migrations/0002_subjects_documents_audit.sql`
 2. `supabase/migrations/0003_extractions_and_reviews.sql`
+3. `supabase/migrations/0004_reminders_notifications_jobs.sql`
 
-Then register both so the CLI does not try to re-apply them later:
+Then register all three so the CLI does not try to re-apply them later:
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name) values
   ('0002', 'subjects_documents_audit'),
-  ('0003', 'extractions_and_reviews');
+  ('0003', 'extractions_and_reviews'),
+  ('0004', 'reminders_notifications_jobs');
 ```
 
 **To verify** without the CLI — this uses only the REST API and the secret key:
 
 ```bash
-for T in subjects documents audit_log extractions document_reviews; do
+for T in subjects documents audit_log extractions document_reviews reminders notifications job_runs; do
   curl -s -o /dev/null -w "$T %{http_code}\n" \
     "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/$T?select=id&limit=1" \
     -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY"
@@ -288,3 +290,30 @@ Framework notes for whoever picks this up:
 - **`EventSchemas` no longer exists in v4.** Rather than guess at its replacement, `lib/jobs/client.ts` exports an `eventData()` helper that narrows a payload at the handler boundary. The event contract still lives in one file; it is enforced one layer later. Worth revisiting once the v4 schema API is confirmed from the docs.
 
 Not built yet: Phase 5 (the daily sweep, reminders, `job_runs` heartbeat, email) and Phase 6 (the dashboard's stale-heartbeat exception). `extraction.service.ts` was never created — the logic lives in the job, which is its only caller, and a service wrapping a single job step would have been indirection for its own sake.
+
+---
+
+**Phase 5 built — the daily sweep, reminders, and the heartbeat.**
+
+This is the phase that makes the system do useful work with nobody logged in. Migration `0004` adds `reminder_tier`, `reminder_channel` and `job_status`; the `reminders`, `notifications` and `job_runs` tables; and the `acknowledge_reminder()` function.
+
+The sweep, in order: open a `job_runs` row, recompute document statuses across the `expiring` boundary, re-enqueue stalled extractions, create the reminders that have come due, deliver them by email and in-app, escalate anything unacknowledged, then close the run.
+
+Decisions worth not re-litigating:
+
+- **The `job_runs` row is written before the work, not after.** That guarantees a database write every day, which is what stops Supabase pausing this free-tier project. An "exit early if there is nothing to do" optimisation would break the keepalive on exactly the quiet weeks where it matters most. Writing first also means a crash leaves a row stuck in `running`, which the dashboard detects — writing only on success would make failures invisible.
+- **Two independent triggers.** Vercel Cron at 02:00 UTC and a GitHub Actions workflow at 03:30 UTC. Not caution for its own sake: this endpoint is the keepalive, so a trigger that lives on the same platform as the app would fail at the same time as the app. The sweep is idempotent, so both firing is harmless.
+- **Each reminder tier fires exactly once, including `overdue`.** A departure from the original "daily once expired" plan — an expired document already sits permanently in the dashboard's Expired group, and a daily email about it only teaches people to filter the sender. The sweep emits only the most urgent tier that currently applies, so a document filed three days before expiry gets one notice, not the whole ladder.
+- **The heartbeat is itself an exception on the dashboard.** If the sweep stops running, nothing else on that page looks wrong — it just quietly stops changing, which reads as "all clear". A deadline-watcher that has silently died is the worst failure this system has, so it is surfaced in the same place as the deadlines.
+- **Acknowledgement goes through a `SECURITY DEFINER` function, not an UPDATE policy.** A policy permissive enough to let someone acknowledge would also let them rewrite `scheduled_for` or clear `escalated_at`. The `reminders` Update type in `types.ts` is narrowed to `sent_at` and `escalated_at` for the same reason — the acknowledgement columns are not reachable from application code at all.
+- **Email failures never abort the sweep.** `sendEmail` returns a result rather than throwing, and a reminder is marked sent regardless. One bad address should not stop every other organization's reminders that day, and the reminder is still visible in-app and still escalates.
+- **Emails are plain text.** These are operational notices, not marketing: plain text renders everywhere, avoids the promotions tab, and cannot break in a mail client.
+
+Deployment requirements this phase introduces, none of which are in the repo:
+
+- `CRON_SECRET`, `RESEND_API_KEY`, `REMINDER_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `GEMINI_API_KEY`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` in Vercel
+- `APP_URL` and `CRON_SECRET` as GitHub repository secrets, for the backup workflow
+- An Inngest app pointed at `/api/inngest`
+- A verified sender domain in Resend
+
+Phases 1–5 are complete in code. What remains is Phase 6 polish (seeded demo data, a members/invite flow, the org switcher that invites make meaningful) and, before any of it runs, the three pending migrations.

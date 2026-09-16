@@ -43,6 +43,12 @@ export type ExtractionStatus = "pending" | "succeeded" | "failed";
 
 export type ReviewAction = "approved" | "corrected" | "rejected";
 
+export type ReminderTier = "t60" | "t30" | "t7" | "t1" | "overdue";
+
+export type ReminderChannel = "email" | "in_app";
+
+export type JobStatus = "running" | "succeeded" | "failed";
+
 export type Database = {
   public: {
     Tables: {
@@ -264,6 +270,101 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      reminders: {
+        Row: {
+          id: string;
+          organization_id: string;
+          document_id: string;
+          tier: ReminderTier;
+          channel: ReminderChannel;
+          scheduled_for: string;
+          sent_at: string | null;
+          acknowledged_at: string | null;
+          acknowledged_by: string | null;
+          escalated_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          document_id: string;
+          tier: ReminderTier;
+          channel: ReminderChannel;
+          scheduled_for: string;
+          sent_at?: string | null;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          escalated_at?: string | null;
+          created_at?: string;
+        };
+        /**
+         * Only what the sweep writes. `acknowledged_at` and `acknowledged_by`
+         * are deliberately absent: those are set by the
+         * `acknowledge_reminder()` function, which is the only thing allowed
+         * to record that a person saw this. Widening this type would make it
+         * possible to fake an acknowledgement from application code.
+         */
+        Update: {
+          sent_at?: string | null;
+          escalated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          reminder_id: string | null;
+          title: string;
+          body: string | null;
+          href: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id: string;
+          reminder_id?: string | null;
+          title: string;
+          body?: string | null;
+          href?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: { read_at?: string | null };
+        Relationships: [];
+      };
+      job_runs: {
+        Row: {
+          id: string;
+          job_name: string;
+          status: JobStatus;
+          started_at: string;
+          finished_at: string | null;
+          items_processed: number;
+          error: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_name: string;
+          status?: JobStatus;
+          started_at?: string;
+          finished_at?: string | null;
+          items_processed?: number;
+          error?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          status?: JobStatus;
+          finished_at?: string | null;
+          items_processed?: number;
+          error?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
     Functions: {
@@ -274,6 +375,8 @@ export type Database = {
         Args: { org_name: string; org_slug: string };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
+      can_edit_document: { Args: { doc: string }; Returns: boolean };
+      acknowledge_reminder: { Args: { reminder: string }; Returns: undefined };
     };
     Enums: {
       member_role: MemberRole;
@@ -282,6 +385,9 @@ export type Database = {
       document_status: DocumentStatus;
       extraction_status: ExtractionStatus;
       review_action: ReviewAction;
+      reminder_tier: ReminderTier;
+      reminder_channel: ReminderChannel;
+      job_status: JobStatus;
     };
     CompositeTypes: Record<never, never>;
   };
@@ -300,3 +406,6 @@ export type DocumentRow = Tables<"documents">;
 export type AuditEntry = Tables<"audit_log">;
 export type Extraction = Tables<"extractions">;
 export type DocumentReview = Tables<"document_reviews">;
+export type Reminder = Tables<"reminders">;
+export type Notification = Tables<"notifications">;
+export type JobRun = Tables<"job_runs">;
