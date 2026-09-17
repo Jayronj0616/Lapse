@@ -385,3 +385,9 @@ The cause is general, not a one-off: **models do not produce a smooth distributi
 Worth keeping in mind when tuning this later: the useful question is not "what accuracy do we want" but "which of the three or four values this model actually emits should count as confident".
 
 Also confirmed working end to end: the event fired on upload, the job ran its five steps, attempt 1's failure was recorded with its full error rather than vanishing, and attempt 2 was recorded alongside it. Keeping one row per attempt is what made this diagnosable at all.
+
+### Document detail no longer 500s on a failed signature
+
+`signedFileUrl()` throws, and the detail page was calling it unguarded — so any failure to sign took down the whole page rather than just the preview link. Everything else on that page (the expiry date, the status, who is responsible) is worth seeing even when the file cannot be reached, and a 500 tells the reader nothing about which part failed.
+
+Now caught and rendered as a notice, matching how the review queue already handles the same call. Worth generalising: **anything that can fail independently of the page's main purpose should be caught at the point it is used**, not allowed to take the render down with it.

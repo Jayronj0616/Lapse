@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, TriangleAlert } from "lucide-react";
 
 import { StatusBadge } from "@/components/documents/StatusBadge";
 import { buttonVariants } from "@/components/ui/button";
@@ -45,7 +45,20 @@ export default async function DocumentDetailPage({
 
   // Signed per request, expires in five minutes. There is no permanent URL to
   // this file by design.
-  const fileUrl = await documentService.signedFileUrl(document.storage_path);
+  //
+  // Failure here must not take the page down. Everything below — the expiry
+  // date, the status, who is responsible — is worth seeing even when the file
+  // itself cannot be reached, and a page that 500s tells the reader nothing
+  // about which part failed. The review queue already handles it this way.
+  let fileUrl: string | null = null;
+  try {
+    fileUrl = await documentService.signedFileUrl(document.storage_path);
+  } catch (error) {
+    console.error(
+      `[documents] could not sign a URL for ${document.id}:`,
+      error,
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 md:px-6 lg:px-8">
@@ -130,15 +143,23 @@ export default async function DocumentDetailPage({
         <Field label="Filed">{formatDate(document.created_at.slice(0, 10))}</Field>
       </dl>
 
-      <a
-        href={fileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={buttonVariants({ variant: "secondary", className: "mt-6" })}
-      >
-        <ExternalLink className="size-4" />
-        Open the file
-      </a>
+      {fileUrl ? (
+        <a
+          href={fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonVariants({ variant: "secondary", className: "mt-6" })}
+        >
+          <ExternalLink className="size-4" />
+          Open the file
+        </a>
+      ) : (
+        <p className="mt-6 flex items-center gap-2 rounded-md bg-status-unknown-bg px-3 py-2 text-sm text-status-unknown">
+          <TriangleAlert className="size-4 shrink-0" aria-hidden />
+          The stored file could not be reached. The details above are still
+          correct.
+        </p>
+      )}
     </main>
   );
 }
