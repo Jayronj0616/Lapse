@@ -352,3 +352,9 @@ Both surfaced within minutes of actually signing in and running the app, after f
 The general lesson for this codebase: **a green build says nothing about whether a page renders.** Anything behind the auth guard needs to be loaded at least once before it is called done.
 
 **Local development also needs `INNGEST_DEV=1`.** Without it the SDK assumes cloud mode and fails with "in cloud mode but no signing key found". It must be left unset in production, where the signing key takes over.
+
+### Upload form: two fixes
+
+**A blank optional date reported "Use a valid date".** Phase 3 made `expiryDate` nullable in the schema but left `document.actions.ts` reading it with `text()`, which returns `""` for an untouched input — and `""` fails the ISO regex. So leaving the field blank, the one action that is supposed to trigger extraction, was the one thing the form rejected. Now read with `emptyToNull()`, like every other optional field. The lesson is narrow and worth keeping: **when a field becomes nullable, the reader has to change too** — the schema alone does not make `""` into `null`.
+
+**The chosen file was lost on every failed submit.** A file input's selection does not survive the re-render, and its value cannot be set declaratively — browsers forbid it so a page cannot nominate files from your disk. Re-attaching a scan every time a date is wrong is a miserable way to fill in a form, so the form now keeps the `File` in a ref and restores it through `DataTransfer`, which is the one sanctioned way to write `input.files`. Wrapped in try/catch: where a browser refuses, the field just stays empty and `required` still prevents an empty submit.

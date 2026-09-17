@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
 
@@ -36,6 +36,34 @@ export function UploadDocumentForm({
     {},
   );
 
+  // A file input loses its selection when the form re-renders after a failed
+  // submit, and its value cannot be set declaratively — the browser forbids it,
+  // so that a page cannot nominate files from your disk. Making someone
+  // re-attach a scan every time a date is wrong is a miserable way to fill in
+  // a form, so the chosen file is held here and put back through DataTransfer,
+  // which is the one sanctioned way to write to `input.files`.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const chosenFile = useRef<File | null>(null);
+
+  const failed = Boolean(state.error || state.fieldErrors);
+
+  useEffect(() => {
+    if (!failed) return;
+
+    const input = fileInputRef.current;
+    const file = chosenFile.current;
+    if (!input || !file || input.files?.length) return;
+
+    try {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+    } catch {
+      // Older browsers refuse this. The field simply stays empty and the
+      // `required` attribute stops a submit with no file, so nothing breaks.
+    }
+  }, [failed, state]);
+
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="orgSlug" value={orgSlug} />
@@ -43,12 +71,16 @@ export function UploadDocumentForm({
       <div className="space-y-2">
         <Label htmlFor="file">Document file</Label>
         <Input
+          ref={fileInputRef}
           id="file"
           name="file"
           type="file"
           required
           accept={ACCEPTED_MIME_TYPES.join(",")}
           aria-describedby="file-hint"
+          onChange={(event) => {
+            chosenFile.current = event.target.files?.[0] ?? null;
+          }}
         />
         <p id="file-hint" className="text-sm text-muted-foreground">
           PDF or image, up to 10 MB.

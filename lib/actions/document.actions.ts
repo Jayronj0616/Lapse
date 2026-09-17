@@ -31,7 +31,11 @@ export async function createDocumentAction(
     documentNumber: emptyToNull(formData.get("documentNumber")),
     issuer: emptyToNull(formData.get("issuer")),
     issueDate: emptyToNull(formData.get("issueDate")),
-    expiryDate: text(formData.get("expiryDate")),
+    // emptyToNull, not text: an untouched date input submits "", and "" is not
+    // a date — it means "not supplied", which is the whole point of the field
+    // being optional. Reading it with text() made a blank field fail the ISO
+    // regex and report "Use a valid date", which is exactly backwards.
+    expiryDate: emptyToNull(formData.get("expiryDate")),
     file,
   });
 
