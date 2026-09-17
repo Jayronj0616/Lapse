@@ -533,4 +533,4 @@ Five screens had never been rendered by anyone. Rather than guess, the exact Pos
 
 The general rule this project keeps running into: **the UI's permission checks have to be derived from the same line the policy draws.** Where they drift, the database is right and the interface is lying. `canInvite` and `canChangeRoles` are now separate values rather than one `canManage` covering both.
 
-**Migration `0006` is written but not yet applied.**
+**Migration `0006` applied 2026-09-17.** Verified three ways: no rows remain with a null `reminder_id`, every surviving notification joins to a live reminder, and an insert without one is now rejected with `23502`.

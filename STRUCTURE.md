@@ -132,7 +132,8 @@ lapse/
 │       ├── 0002_subjects_documents_audit.sql OK  applied
 │       ├── 0003_extractions_and_reviews.sql OK  applied
 │       ├── 0004_reminders_notifications_jobs.sql OK  applied
-│       └── 0005_invitations.sql               WIP written, not yet applied
+│       ├── 0005_invitations.sql               OK  applied
+│       └── 0006_notifications_follow_reminders.sql OK applied
 │
 ├── .github/workflows/keepalive.yml           OK  backup sweep trigger, offset by 90min
 ├── vercel.json                               OK  Vercel Cron, 02:00 UTC daily
