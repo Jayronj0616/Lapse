@@ -444,3 +444,47 @@ Found by seeding the demo and noticing a document that had demonstrably succeede
 The update is now scoped with `.eq("status", "processing")`, so a late failure is a no-op against a document that has already moved on.
 
 The general shape is worth remembering: **a background job writing a terminal state should say which state it expects to be replacing.** Retries, re-queues and a sweep that re-enqueues stalled work all mean two runs for the same document can overlap, and the last writer is not necessarily the right one.
+
+---
+
+## Deployment
+
+Live at **https://lapse-chi.vercel.app** (Vercel project `lapse`, first deployed 2026-09-17).
+
+### Environment variables
+
+Already set on the project — none of these are secret:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_APP_URL` | `https://lapse-chi.vercel.app` |
+| `NEXT_PUBLIC_SUPABASE_URL` | the project URL |
+| `EXTRACTION_PROVIDER` | `gemini` |
+| `GEMINI_MODEL` | `gemini-3.6-flash` |
+| `EXTRACTION_CONFIDENCE_THRESHOLD` | `0.90` |
+
+Still to add, all of them secret or account-specific:
+
+| Variable | Where it comes from |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → API Keys. Public by design, but project-specific. |
+| `SUPABASE_SECRET_KEY` | Supabase → API Keys. **Rotate before entering it.** |
+| `GEMINI_API_KEY` | Google AI Studio |
+| `CRON_SECRET` | Any long random string. The same value goes in the GitHub secret. |
+| `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Inngest Cloud, after creating an app pointed at `/api/inngest` |
+| `RESEND_API_KEY`, `REMINDER_FROM_EMAIL` | Resend, once a sender domain is verified. Optional — without them reminders stay in-app. |
+| `NEXT_PUBLIC_DEMO_EMAIL`, `NEXT_PUBLIC_DEMO_PASSWORD` | The demo account. Bundled into client JavaScript, so treat as published. |
+
+**`INNGEST_DEV` must NOT be set in production.** It tells the SDK to look for a local dev server. With it set, a deployed app cannot reach Inngest Cloud at all.
+
+### Deployment Protection
+
+New Vercel projects enable it by default, which puts the deployment behind Vercel SSO — a 302 to `vercel.com/sso-api` for anyone who is not the account owner. For a portfolio link that is fatal, and it is silent: the deploy succeeds, the URL works for you, and nobody else can see anything.
+
+Turn it off at Project → Settings → Deployment Protection → Vercel Authentication → Disabled.
+
+### After the first working deploy
+
+- Point an Inngest Cloud app at `https://lapse-chi.vercel.app/api/inngest` and sync it.
+- Add `APP_URL` and `CRON_SECRET` as GitHub repository secrets so `.github/workflows/keepalive.yml` can run. That workflow is the backup trigger for the sweep, and therefore the backup for the Supabase keepalive.
+- Confirm the cron by calling the endpoint by hand once with the bearer token, then checking that the dashboard heartbeat turns green.
