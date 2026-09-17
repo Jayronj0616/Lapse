@@ -534,3 +534,17 @@ Five screens had never been rendered by anyone. Rather than guess, the exact Pos
 The general rule this project keeps running into: **the UI's permission checks have to be derived from the same line the policy draws.** Where they drift, the database is right and the interface is lying. `canInvite` and `canChangeRoles` are now separate values rather than one `canManage` covering both.
 
 **Migration `0006` applied 2026-09-17.** Verified three ways: no rows remain with a null `reminder_id`, every surviving notification joins to a live reminder, and an insert without one is now rejected with `23502`.
+
+### The demo signs visitors in; it no longer publishes credentials
+
+Printing the demo credentials on the landing page was worse on two counts at once: it published the password to every visitor through `NEXT_PUBLIC_`, which Next compiles into the client bundle, *and* it still made them copy it before they could see anything.
+
+The page now posts to a server action that signs the visitor in using `DEMO_EMAIL` and `DEMO_PASSWORD` — server-only variables that never reach a browser. The action takes no input, so it cannot be used to sign in as anybody else, and what it grants is precisely what the demo account has: manager in one seeded organization, unable to delete it or change roles.
+
+Neither the address nor the password appears anywhere on the page. Naming the account invites someone to try it against other services, and a one-click button needs neither value.
+
+It is a form POST rather than a link, so link prefetching and crawlers do not mint sessions for anyone who merely passes the page.
+
+Verified on the live deployment: zero occurrences of either value in the HTML, and none in any client chunk it loads.
+
+`NEXT_PUBLIC_DEMO_EMAIL` and `NEXT_PUBLIC_DEMO_PASSWORD` were removed from Vercel. `CopyField.tsx` was deleted — it had no remaining callers.
