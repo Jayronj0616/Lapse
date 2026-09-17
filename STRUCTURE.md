@@ -13,7 +13,7 @@ lapse/
 ├── app/
 │   ├── layout.tsx                            OK  root: Poppins, Geist Mono, metadata template
 │   ├── globals.css                           OK  shadcn base + Lapse status tokens
-│   ├── page.tsx                              OK  routes a signed-in user to their org, or onboarding
+│   ├── page.tsx                              OK  landing page when signed out; routes onward when in
 │   ├── new-organization/page.tsx             OK  onboarding; bounces out if they already have one
 │   ├── invite/[token]/page.tsx               OK  public; preview, sign up, or accept
 │   ├── (auth)/
@@ -52,6 +52,11 @@ lapse/
 │   │   └── UploadDocumentForm.tsx            OK  client; native selects so a plain form posts
 │   ├── subjects/
 │   │   └── CreateSubjectForm.tsx             OK  client; resets itself after a successful add
+│   ├── landing/
+│   │   ├── LandingPage.tsx                   OK  public page; composes the sections
+│   │   ├── PipelineFlow.tsx                  OK  six stages; step 3 styled as the branch
+│   │   ├── GateExample.tsx                   OK  accepted vs queued, side by side
+│   │   └── CopyField.tsx                     OK  client; demo credential + copy
 │   ├── members/
 │   │   ├── InviteMemberForm.tsx              OK  client
 │   │   ├── MemberRow.tsx                     OK  client, role + remove

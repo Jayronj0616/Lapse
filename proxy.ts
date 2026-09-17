@@ -28,6 +28,11 @@ const AUTH_PATHS = ["/login", "/signup", "/auth"];
  * existing user needs to accept while already signed in. Bouncing them to `/`
  * the way `/login` does would make an invitation impossible to accept.
  *
+ * `/` — the public landing page. It is the only screen most visitors to this
+ * project will ever load, so it cannot sit behind the auth guard. The page
+ * itself redirects a signed-in user onward, which is why it is listed here
+ * rather than under AUTH_PATHS.
+ *
  * `/api/inngest` and `/api/cron` — these are machine endpoints with their own
  * authentication: Inngest verifies a request signature, and the sweep checks
  * CRON_SECRET. Sending them through the session guard redirects them to
@@ -36,7 +41,7 @@ const AUTH_PATHS = ["/login", "/signup", "/auth"];
  * keepalive, that failure is silent until the database pauses. A 307 to a
  * login page is not something a cron job knows how to complain about.
  */
-const OPEN_PATHS = ["/invite", "/api/inngest", "/api/cron"];
+const OPEN_PATHS = ["/", "/invite", "/api/inngest", "/api/cron"];
 
 function matches(paths: string[], pathname: string): boolean {
   return paths.some(

@@ -391,3 +391,26 @@ Also confirmed working end to end: the event fired on upload, the job ran its fi
 `signedFileUrl()` throws, and the detail page was calling it unguarded — so any failure to sign took down the whole page rather than just the preview link. Everything else on that page (the expiry date, the status, who is responsible) is worth seeing even when the file cannot be reached, and a 500 tells the reader nothing about which part failed.
 
 Now caught and rendered as a notice, matching how the review queue already handles the same call. Worth generalising: **anything that can fail independently of the page's main purpose should be caught at the point it is used**, not allowed to take the render down with it.
+
+---
+
+**A public landing page at `/`.**
+
+Until now `/` was pure routing — signed out went to `/login`. For a product that is arguably fine; for this project it was the single worst screen in the system, because a link sent to an employer opened a bare login form with no explanation and no way in.
+
+`/` now renders a landing page for signed-out visitors and redirects signed-in ones to their dashboard exactly as before.
+
+Design decisions behind it:
+
+- **Written for who actually arrives** — engineers and hiring managers following a link, not the trucking company in the example. So it explains the mechanism rather than selling an outcome. No testimonials, no metrics nobody measured, no feature grid.
+- **The gate is the centrepiece.** Two records side by side, one accepted and one held for review, with the ambiguous field highlighted. Calling a model is easy; deciding when not to believe it is the work, and that is the only part worth building a page around.
+- **Shown as records, not a chart.** Two numbers do not need a visualisation, and inventing a bar-and-axis grammar for them would introduce a second visual language on a page whose job is to look like the product. The chips reuse the application's own status vocabulary.
+- **The flow is a numbered grid, not an arrow chain.** Seven connected nodes cannot be legible across a phone, and shrinking them to fit destroys the labels at exactly the width most visitors use. Numbering carries the sequence and survives any viewport.
+- **Demo credentials render in full**, behind no reveal or modal, and only when `NEXT_PUBLIC_DEMO_EMAIL` and `NEXT_PUBLIC_DEMO_PASSWORD` are set. Anything that makes a visitor work to get into a demo loses most of them.
+
+Two things worth carrying forward:
+
+- **`NEXT_PUBLIC_` variables are bundled into client JavaScript.** Point the demo account at a limited role, never an owner — an owner can delete the organization, remove members and change roles, and anyone reading the page can sign in as it.
+- **`/` had to be added to `OPEN_PATHS`.** The `matches()` helper is safe for `"/"` because the prefix test uses `"/" + "/"` = `"//"`, which no real path begins with, so it matches the root exactly and nothing else.
+
+Two bugs found by loading it rather than building it, continuing the pattern: lucide v1 has dropped brand icons, so `Github` does not exist and the repo links use `CodeXml`; and the sections were siblings of `<main>` rather than inside it, which both broke "skip to main content" and gave the hero a `flex-1` box that stretched to the full viewport and pushed everything else below the fold.
