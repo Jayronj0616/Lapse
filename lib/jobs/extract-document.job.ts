@@ -45,7 +45,16 @@ export const extractDocument = inngest.createFunction(
         .from("documents")
         .update({ status: "extraction_failed" satisfies DocumentStatus })
         .eq("id", documentId)
-        .eq("organization_id", organizationId);
+        .eq("organization_id", organizationId)
+        // Only if it is still waiting. A run can exhaust its retries *after* a
+        // later run has already succeeded — a re-queued document, or the daily
+        // sweep retrying a stalled one — and an unconditional update would then
+        // overwrite a good extraction with a failure. The document would look
+        // like it worked and then silently revert minutes later, which is the
+        // kind of thing nobody ever manages to reproduce.
+        //
+        // Scoping the update to `processing` makes the late failure a no-op.
+        .eq("status", "processing" satisfies DocumentStatus);
     },
   },
   async ({ event, step }) => {

@@ -434,3 +434,13 @@ Three decisions in that script worth keeping:
 The review entry carries a real `extractions` row at 0.85 confidence. Without it the review screen has no confidence to display and the queue reads as arbitrary busywork rather than as the model declining to guess.
 
 Sample PDFs moved into `scripts/fixtures/` so the seed is reproducible from a clean clone.
+
+### A late failure could overwrite a successful extraction
+
+Found by seeding the demo and noticing a document that had demonstrably succeeded sitting in `extraction_failed`.
+
+`onFailure` set the status unconditionally. A run can exhaust its retries *after* a later run has already succeeded — a manually re-queued document, or the daily sweep retrying a stalled one — and the late failure then overwrote a good extraction. The document would appear to work and silently revert minutes later, which is the kind of bug nobody ever manages to reproduce on demand.
+
+The update is now scoped with `.eq("status", "processing")`, so a late failure is a no-op against a document that has already moved on.
+
+The general shape is worth remembering: **a background job writing a terminal state should say which state it expects to be replacing.** Retries, re-queues and a sweep that re-enqueues stalled work all mean two runs for the same document can overlap, and the last writer is not necessarily the right one.
