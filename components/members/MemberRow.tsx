@@ -18,12 +18,21 @@ const SELECT_CLASSES =
 export function MemberRow({
   member,
   orgSlug,
-  canManage,
+  canChangeRoles,
   isSelf,
 }: {
   member: Member;
   orgSlug: string;
-  canManage: boolean;
+  /**
+   * Owners only — not managers.
+   *
+   * The RLS policies on `memberships` restrict both UPDATE and DELETE to
+   * owners, while invitations are open to managers too. Rendering these
+   * controls for a manager would offer a button that the database always
+   * refuses; the service turns that into a readable message, but a control
+   * that can never succeed should not be on screen at all.
+   */
+  canChangeRoles: boolean;
   isSelf: boolean;
 }) {
   const [roleState, changeRole, changingRole] = useActionState<
@@ -54,7 +63,7 @@ export function MemberRow({
         ) : null}
       </div>
 
-      {canManage ? (
+      {canChangeRoles ? (
         <div className="flex shrink-0 items-center gap-2">
           <form action={changeRole} className="flex items-center gap-2">
             <input type="hidden" name="orgSlug" value={orgSlug} />

@@ -315,7 +315,9 @@ export type Database = {
           id: string;
           organization_id: string;
           user_id: string;
-          reminder_id: string | null;
+          // Not nullable since 0006: a notification whose reminder is gone has
+          // nothing to say, so it is cascade-deleted rather than orphaned.
+          reminder_id: string;
           title: string;
           body: string | null;
           href: string | null;
@@ -326,7 +328,7 @@ export type Database = {
           id?: string;
           organization_id: string;
           user_id: string;
-          reminder_id?: string | null;
+          reminder_id: string;
           title: string;
           body?: string | null;
           href?: string | null;

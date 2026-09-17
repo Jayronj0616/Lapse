@@ -18,7 +18,15 @@ export default async function SubjectsPage({
   const organization = await organizationService.getBySlug(orgSlug);
   if (!organization) notFound();
 
-  const subjects = await subjectService.listForOrganization(organization.id);
+  const [subjects, role] = await Promise.all([
+    subjectService.listForOrganization(organization.id),
+    organizationService.roleIn(organization.id),
+  ]);
+
+  // Same line the RLS policy draws. Staff can see subjects but not add them,
+  // so showing them the form would offer a control the database always
+  // refuses — it fails readably, but it should not be there at all.
+  const canAddSubjects = role === "owner" || role === "manager";
 
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-6 lg:px-8">
@@ -28,16 +36,20 @@ export default async function SubjectsPage({
         belongs to a truck; a licence belongs to a driver.
       </p>
 
-      <div className="mt-8 rounded-lg border p-4">
-        <CreateSubjectForm orgSlug={organization.slug} />
-      </div>
+      {canAddSubjects ? (
+        <div className="mt-8 rounded-lg border p-4">
+          <CreateSubjectForm orgSlug={organization.slug} />
+        </div>
+      ) : null}
 
       {subjects.length === 0 ? (
         <div className="mt-8 flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <Truck className="size-8 text-muted-foreground" aria-hidden />
           <p className="mt-4 text-sm font-medium">No subjects yet</p>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Add a vehicle or a person above, then file documents against it.
+            {canAddSubjects
+              ? "Add a vehicle or a person above, then file documents against it."
+              : "An owner or manager needs to add the vehicles and people before documents can be filed against them."}
           </p>
         </div>
       ) : (

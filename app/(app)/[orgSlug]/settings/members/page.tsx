@@ -32,13 +32,17 @@ export default async function MembersPage({
     organizationService.roleIn(organization.id),
   ]);
 
-  const canManage = role === "owner" || role === "manager";
+  // Two different permissions, and conflating them was a bug: managers may
+  // invite and revoke invitations, but only owners may change a role or remove
+  // a member. The policies in migration 0001 draw the line there.
+  const canInvite = role === "owner" || role === "manager";
+  const canChangeRoles = role === "owner";
 
   // RLS already refuses the writes, so this is about not showing controls that
   // would fail — not about enforcement. The database is the enforcement.
   const [members, invitations] = await Promise.all([
     membershipService.listMembers(organization.id),
-    canManage
+    canInvite
       ? membershipService.listInvitations(organization.id)
       : Promise.resolve([]),
   ]);
@@ -52,7 +56,7 @@ export default async function MembersPage({
         this one.
       </p>
 
-      {canManage ? (
+      {canInvite ? (
         <div className="mt-8 rounded-lg border p-4">
           <InviteMemberForm orgSlug={organization.slug} />
         </div>
@@ -70,13 +74,13 @@ export default async function MembersPage({
             key={member.membershipId}
             member={member}
             orgSlug={organization.slug}
-            canManage={canManage}
+            canChangeRoles={canChangeRoles}
             isSelf={member.userId === user.id}
           />
         ))}
       </ul>
 
-      {canManage ? (
+      {canInvite ? (
         <>
           <h2 className="mt-10 text-sm font-medium">
             Pending invitations

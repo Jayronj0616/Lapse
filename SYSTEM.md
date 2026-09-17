@@ -518,3 +518,19 @@ Still outstanding:
 The number that actually matters is the reminder count: **8 after the second run, not 16.** The unique constraint on `(document_id, tier, channel)` absorbed the whole second pass. That is not a nicety — Vercel Cron at 02:00 and GitHub Actions at 03:30 both fire every day against the same data, so without it every reminder would be sent twice, every day, to every user.
 
 Worth keeping in mind when adding anything else to the sweep: **it runs at least twice a day by design.** Any new side effect needs its own idempotency key, or it needs to be safe to repeat.
+
+---
+
+### Reviewing the untouched screens without being able to sign in
+
+Five screens had never been rendered by anyone. Rather than guess, the exact PostgREST queries behind them were run with the service key and the returned shapes compared against the type assertions in the services. Three findings.
+
+**1. Every nested join matched its assertion.** `subject` returns an object or null, `extractions` an array, `reminder`/`profiles`/`actor` objects or null — all as declared. The biggest suspicion going in was that one of those hand-written casts was a lie. None were.
+
+**2. Notifications outlived their reminders.** `notifications.reminder_id` was `on delete set null`, and `reminders` cascades from `documents`. So any owner deleting a document — an ordinary action — left notifications behind with a dead `href` and no way to acknowledge them, because that control only renders when there is a reminder. Migration `0006` deletes the existing orphans, switches the foreign key to `on delete cascade`, and makes the column `not null`. A notification exists to talk about a reminder; with the reminder gone it has nothing to say.
+
+**3. Two screens offered controls the database refuses.** `members` showed role selects and Remove buttons to managers, but the policies on `memberships` restrict UPDATE and DELETE to owners — and the demo account is a manager, so every visitor would have hit it. `subjects` showed the create form to staff, whose insert the policy refuses. Both failed readably, because the services translate `42501`, but a control that can never succeed should not be on screen.
+
+The general rule this project keeps running into: **the UI's permission checks have to be derived from the same line the policy draws.** Where they drift, the database is right and the interface is lying. `canInvite` and `canChangeRoles` are now separate values rather than one `canManage` covering both.
+
+**Migration `0006` is written but not yet applied.**
