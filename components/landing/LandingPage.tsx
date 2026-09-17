@@ -138,8 +138,16 @@ export function LandingPage() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
+            {/* The demo button lands on a login form with the address already
+                in it, so the only thing left to do is paste the password from
+                the panel below. The header's "Sign in" stays generic — that is
+                the entry for people who already have their own account. */}
             <Link
-              href={hasDemo ? "/login" : REPO_URL}
+              href={
+                hasDemo
+                  ? `/login?email=${encodeURIComponent(demoEmail as string)}`
+                  : REPO_URL
+              }
               className={buttonVariants({ size: "lg" })}
             >
               {hasDemo ? "Open the demo" : "Read the source"}

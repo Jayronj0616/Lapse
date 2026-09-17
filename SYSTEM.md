@@ -414,3 +414,23 @@ Two things worth carrying forward:
 - **`/` had to be added to `OPEN_PATHS`.** The `matches()` helper is safe for `"/"` because the prefix test uses `"/" + "/"` = `"//"`, which no real path begins with, so it matches the root exactly and nothing else.
 
 Two bugs found by loading it rather than building it, continuing the pattern: lucide v1 has dropped brand icons, so `Github` does not exist and the repo links use `CodeXml`; and the sections were siblings of `<main>` rather than inside it, which both broke "skip to main content" and gave the hero a `flex-1` box that stretched to the full viewport and pushed everything else below the fold.
+
+---
+
+**A seeded public demo, and a prefilled way into it.**
+
+The landing page previously had two buttons — "Open the demo" and "Sign in" — pointing at the same place with different labels. The demo button now lands on `/login?email=...` with the address already filled, leaving only the password to paste. The header's "Sign in" stays generic; that is the entry for people who already have their own account.
+
+Only the address is passed, never the password. A password in a query string ends up in browser history and server logs, and the demo password is one click to copy from the panel it came from.
+
+`pnpm seed:demo` creates the account the landing page advertises, plus a fleet of five subjects and six documents landing in every dashboard state: one expired, one due in four days, one in nineteen, one in forty-four, one comfortably active, and one waiting in the review queue with its extraction attempt attached.
+
+Three decisions in that script worth keeping:
+
+- **The admin owns the demo organization; the demo account is only a manager.** Anyone reading the landing page can sign in as the demo user. An owner can delete the organization, remove members and change roles — a manager can do everything worth showing and none of that.
+- **It resets rather than appends.** Visitors can edit and delete, so re-running restores a known state instead of stacking a second copy of the fleet. Storage objects are removed alongside the rows, so repeated runs do not accumulate orphaned files.
+- **Every date is relative to today.** Hardcoded dates drift into "everything expired two years ago", which makes the dashboard look broken rather than urgent.
+
+The review entry carries a real `extractions` row at 0.85 confidence. Without it the review screen has no confidence to display and the queue reads as arbitrary busywork rather than as the model declining to guess.
+
+Sample PDFs moved into `scripts/fixtures/` so the seed is reproducible from a clean clone.
