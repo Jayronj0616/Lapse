@@ -92,6 +92,18 @@ In-app delivery. Separate from `reminders` because one reminder can fan out to s
 
 Shipped in migration `0002`, not the later one originally planned here, because Phase 2 writes audit rows.
 
+### `invitations`
+`id uuid pk` / `organization_id` / `email text` / `role member_role` / `token text unique` / `invited_by` / `expires_at` / `accepted_at` / `accepted_by` / `created_at`
+Partial unique index on `(organization_id, email) where accepted_at is null`.
+
+How everyone except the first person gets into an organization. Public sign-up stays -- someone at a new customer has to be able to create the organization, and a demo nobody can try is not a demo -- but signing up is no longer the *only* way in. With an invitation you join an existing organization; without one, you create your own.
+
+The partial unique index means re-inviting a pending person is refused rather than producing a second link that also works.
+
+**The email check in `accept_invitation()` is the security boundary**, not the token. Without it the token alone grants membership, so a forwarded link would let anybody in. Requiring the signed-in address to match the invited one makes the token a second factor rather than the whole credential.
+
+There is deliberately no select policy for the invited person. They reach their invitation through `invitation_preview()` and `accept_invitation()`, never by reading the table -- otherwise a pending invitee would need read access to a table listing everyone else who has been invited. `invitation_preview()` is callable by anon and returns only the organization's name, the invited address, and whether the link is still live.
+
 ### `job_runs`
 `id uuid pk` · `job_name text` · `status job_status` · `started_at` · `finished_at` · `items_processed int` · `error text` · `created_at`
 
@@ -132,6 +144,7 @@ With a `role_in(org uuid)` companion returning the caller's `member_role`.
 | `reminders` | member via document | service role only; acknowledge via a `security definer` function | none |
 | `notifications` | own rows only | service role only | own rows |
 | `audit_log` | owner, manager | **no policy at all** — the `SECURITY DEFINER` trigger inserts without needing one | none |
+| `invitations` | owner, manager | owner, manager (insert); **no update** | owner, manager (revoke) |
 | `job_runs` | authenticated read | service role only | none |
 
 Rows written exclusively by background jobs have no user-facing insert policy at all. If a client can't write it, a client bug can't forge it.

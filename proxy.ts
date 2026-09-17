@@ -13,14 +13,23 @@ import { updateSession } from "@/lib/supabase/session";
  */
 
 /**
- * Routes reachable without a session. Everything else requires one — the guard
- * is deny-by-default, so a new route is protected the moment it exists rather
- * than the moment someone remembers to protect it.
+ * Sign-in and sign-up. Reachable without a session, and a signed-in visitor is
+ * bounced away from them — there is nothing for them there.
  */
-const PUBLIC_PATHS = ["/login", "/signup", "/auth"];
+const AUTH_PATHS = ["/login", "/signup", "/auth"];
 
-function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some(
+/**
+ * Reachable without a session, but *not* redirected away from when signed in.
+ *
+ * Invitation links have to work in both states: a new recipient needs to see
+ * what they have been invited to before signing up, and an existing user needs
+ * to be able to accept while already signed in. Bouncing them to `/` the way
+ * `/login` does would make an invitation impossible to accept.
+ */
+const OPEN_PATHS = ["/invite"];
+
+function matches(paths: string[], pathname: string): boolean {
+  return paths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 }
@@ -29,7 +38,10 @@ export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  if (!user && !isPublic(pathname)) {
+  const isAuthPath = matches(AUTH_PATHS, pathname);
+  const isOpenPath = matches(OPEN_PATHS, pathname);
+
+  if (!user && !isAuthPath && !isOpenPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
@@ -38,7 +50,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isPublic(pathname)) {
+  if (user && isAuthPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

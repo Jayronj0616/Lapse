@@ -315,3 +315,26 @@ Phases 1–5 are complete in code. What remains is Phase 6 polish (seeded demo d
 Run by hand through the Supabase SQL Editor, since `supabase db push` is still blocked by the management-API 403. All eleven tables and the private `documents` bucket verified live via the REST check above.
 
 The database is now fully in step with the code. The application is walkable end to end for everything that does not need a model: sign up, create an organization, add subjects, file documents with typed dates, and see them triaged on the dashboard. Extraction and reminder email remain untested — they need `GEMINI_API_KEY`, `RESEND_API_KEY`, `REMINDER_FROM_EMAIL` and the Inngest keys.
+
+---
+
+**Phase 6 — invitations, roles, and the organization switcher.**
+
+Jayron asked whether users should be able to sign up at all in a system like this. Half right, and the half that was right mattered: self-signup is correct for the *first* person at a company — without it no customer can come into existence and nobody can try the demo — but every subsequent person was also creating a brand-new organization instead of joining their employer. That was the real defect, and invitations are its fix.
+
+Migration `0005` adds `invitations`, plus `invitation_preview()` and `accept_invitation()`, and puts `memberships` and `invitations` under the existing audit trigger so role changes and removals are recorded.
+
+Decisions worth not re-litigating:
+
+- **The email check inside `accept_invitation()` is the security boundary, not the token.** Without it the link alone grants membership, so a forwarded invitation — or one pasted into a group chat — would let anybody in. Requiring the signed-in address to match the invited one makes the token a second factor rather than the entire credential.
+- **The invited person has no select policy on `invitations`.** They reach theirs through two `SECURITY DEFINER` functions. A read policy would mean a pending invitee could list everyone else who has been invited.
+- **`invitation_preview()` is callable by anon** and returns only the organization name, the invited address, and whether the link is live. A leaked token should reveal as little as possible.
+- **Invitations cannot be edited, only revoked.** There is no update policy: changing the role or address after a link has been sent would mean the recipient accepts something other than what they were shown.
+- **Owner is not offered in the invite form.** Promoting someone to owner is a deliberate act on an existing member, not something done by typing an address into a box.
+- **`/invite` needed its own path class in the proxy.** The old logic bounced any signed-in visitor away from public paths, which would have made it impossible to accept an invitation while already signed in. `AUTH_PATHS` now means "redirect away when signed in"; `OPEN_PATHS` means "reachable in either state".
+- **Sign-up carries the token through.** Without that branch a new member lands on the organization-creation screen and ends up owning an empty duplicate of the company that just invited them.
+- **The organization switcher finally exists**, and renders only when the viewer belongs to more than one. It was deliberately left unbuilt through Phases 1–5 because there was nothing to switch between; invitations are what make it real.
+
+Also added: `scripts/seed-admin.mjs` (`pnpm seed:admin`), which creates an admin account and an organization for it to own. Every value comes from the environment — nothing is hardcoded, because this repo is public and a committed admin password is found by scrapers within hours. It uses the Admin API rather than the sign-up path so `email_confirm` can be set, which is what makes a non-deliverable address like `admin@lapse.com` usable, and it is safe to run repeatedly.
+
+**Migration `0005` is written but not yet applied.** Same SQL Editor procedure as the others.

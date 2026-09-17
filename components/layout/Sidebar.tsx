@@ -5,11 +5,13 @@ import {
   LayoutDashboard,
   LogOut,
   ScrollText,
+  Settings,
   ShieldCheck,
   Truck,
 } from "lucide-react";
 
 import { NavLink } from "@/components/layout/NavLink";
+import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
 import { signOutAction } from "@/lib/actions/auth.actions";
 import type { MemberRole, Organization } from "@/lib/supabase/types";
 
@@ -18,7 +20,8 @@ import type { MemberRole, Organization } from "@/lib/supabase/types";
  * use. The audit log is readable by owners and managers, so staff do not get a
  * link to a page that would render empty for them by policy.
  *
- * Review, settings and members are added by the phases that build them.
+ * The organization switcher appears only when the viewer belongs to more than
+ * one — with a single membership it is a control that cannot do anything.
  */
 export function Sidebar({
   organization,
@@ -26,12 +29,15 @@ export function Sidebar({
   userEmail,
   reviewCount,
   unreadCount,
+  organizations,
 }: {
   organization: Organization;
   role: MemberRole | null;
   userEmail: string;
   reviewCount: number;
   unreadCount: number;
+  /** Every organization the viewer belongs to, for the switcher. */
+  organizations: Organization[];
 }) {
   const base = `/${organization.slug}`;
   const canSeeAudit = role === "owner" || role === "manager";
@@ -44,10 +50,19 @@ export function Sidebar({
       </div>
 
       <div className="border-y px-4 py-3">
-        <p className="text-xs text-muted-foreground">Organization</p>
-        <p className="truncate text-sm font-medium" title={organization.name}>
-          {organization.name}
-        </p>
+        {organizations.length > 1 ? (
+          <OrgSwitcher organizations={organizations} current={organization} />
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">Organization</p>
+            <p
+              className="truncate text-sm font-medium"
+              title={organization.name}
+            >
+              {organization.name}
+            </p>
+          </>
+        )}
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
@@ -71,6 +86,9 @@ export function Sidebar({
             Audit log
           </NavLink>
         ) : null}
+        <NavLink href={`${base}/settings/members`} icon={Settings}>
+          Members
+        </NavLink>
       </nav>
 
       <div className="border-t p-3">

@@ -4,7 +4,23 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import * as authService from "@/lib/services/auth.service";
+import * as membershipService from "@/lib/services/membership.service";
 import { signInSchema, signUpSchema } from "@/lib/validations/auth.schema";
+
+/**
+ * `redirect()` signals by throwing, so a try/catch around a call that also
+ * redirects has to let that particular error through or the navigation is
+ * swallowed and reported as a failure.
+ */
+function isRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
 
 import type { FormState } from "./form-state";
 
@@ -75,11 +91,37 @@ export async function signUpAction(
     };
   }
 
+  const invite = formData.get("invite");
+  const inviteToken = typeof invite === "string" && invite ? invite : null;
+
   if (needsEmailConfirmation) {
     return {
-      message:
-        "Check your inbox — confirm your email address, then sign in.",
+      message: inviteToken
+        ? "Check your inbox — confirm your email address, then open your invitation link again to join."
+        : "Check your inbox — confirm your email address, then sign in.",
     };
+  }
+
+  // Signing up from an invitation joins that organization instead of creating
+  // a new one. Without this branch a new member would land on the
+  // organization-creation screen and end up owning an empty duplicate of the
+  // company that just invited them.
+  if (inviteToken) {
+    try {
+      const slug = await membershipService.acceptInvitation(inviteToken);
+      redirect(`/${slug}/dashboard`);
+    } catch (error) {
+      // The account exists and they are signed in; only the joining failed.
+      // Sending them to `/` would silently drop them into org creation, so say
+      // what happened instead.
+      if (isRedirectError(error)) throw error;
+      return {
+        error:
+          error instanceof membershipService.MembershipError
+            ? `Your account was created, but the invitation could not be accepted: ${error.message}`
+            : "Your account was created, but the invitation could not be accepted.",
+      };
+    }
   }
 
   redirect("/");

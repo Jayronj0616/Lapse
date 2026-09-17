@@ -26,10 +26,11 @@ export default async function OrganizationLayout({
   // Drives which navigation the viewer sees. Never an authorization decision
   // on its own — every policy is enforced in the database regardless of what
   // the sidebar chose to render.
-  const [role, reviewCount, unreadCount] = await Promise.all([
+  const [role, reviewCount, unreadCount, organizations] = await Promise.all([
     organizationService.roleIn(organization.id),
     reviewService.countPending(organization.id),
     notificationService.countUnread(organization.id),
+    organizationService.listMine(),
   ]);
 
   return (
@@ -40,6 +41,7 @@ export default async function OrganizationLayout({
         userEmail={user.email ?? ""}
         reviewCount={reviewCount}
         unreadCount={unreadCount}
+        organizations={organizations}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar organization={organization} />

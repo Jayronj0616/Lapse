@@ -336,6 +336,33 @@ export type Database = {
         Update: { read_at?: string | null };
         Relationships: [];
       };
+      invitations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          email: string;
+          role: MemberRole;
+          token: string;
+          invited_by: string | null;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          email: string;
+          role?: MemberRole;
+          token?: string;
+          invited_by: string;
+          expires_at?: string;
+        };
+        // An invitation's email and role are fixed once the link is sent.
+        // Revoking is a delete; accepting goes through accept_invitation().
+        Update: never;
+        Relationships: [];
+      };
       job_runs: {
         Row: {
           id: string;
@@ -377,6 +404,11 @@ export type Database = {
       };
       can_edit_document: { Args: { doc: string }; Returns: boolean };
       acknowledge_reminder: { Args: { reminder: string }; Returns: undefined };
+      invitation_preview: {
+        Args: { invite_token: string };
+        Returns: { organization_name: string; email: string; valid: boolean }[];
+      };
+      accept_invitation: { Args: { invite_token: string }; Returns: string };
     };
     Enums: {
       member_role: MemberRole;
@@ -409,3 +441,4 @@ export type DocumentReview = Tables<"document_reviews">;
 export type Reminder = Tables<"reminders">;
 export type Notification = Tables<"notifications">;
 export type JobRun = Tables<"job_runs">;
+export type Invitation = Tables<"invitations">;

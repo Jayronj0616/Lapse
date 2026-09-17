@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SignUpForm() {
+export function SignUpForm({ invite }: { invite?: string }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     signUpAction,
     {},
@@ -40,6 +40,10 @@ export function SignUpForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Carried through sign-up so the new account joins the organization
+          that invited them rather than creating one of its own. */}
+      {invite ? <input type="hidden" name="invite" value={invite} /> : null}
+
       <div className="space-y-2">
         <Label htmlFor="fullName">Full name</Label>
         <Input

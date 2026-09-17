@@ -15,6 +15,7 @@ lapse/
 │   ├── globals.css                           OK  shadcn base + Lapse status tokens
 │   ├── page.tsx                              OK  routes a signed-in user to their org, or onboarding
 │   ├── new-organization/page.tsx             OK  onboarding; bounces out if they already have one
+│   ├── invite/[token]/page.tsx               OK  public; preview, sign up, or accept
 │   ├── (auth)/
 │   │   ├── layout.tsx                        OK  centered, no app chrome
 │   │   ├── login/page.tsx                    OK  honours ?next=
@@ -28,7 +29,7 @@ lapse/
 │   │       ├── subjects/page.tsx             —   vehicles and people
 │   │       ├── audit/page.tsx                OK  trigger-written log, owner/manager only
 │   │       ├── notifications/page.tsx        OK  your reminders, acknowledge here
-│   │       └── settings/                     —   org settings, members
+│   │       └── settings/members/page.tsx     OK  invite, roles, remove, revoke
 │   └── api/
 │       ├── cron/sweep/route.ts               OK  daily sweep, checks CRON_SECRET
 │       └── inngest/route.ts                  OK  serve(), signature-verified
@@ -44,12 +45,18 @@ lapse/
 │   ├── layout/
 │   │   ├── Sidebar.tsx                       OK  desktop; only links to routes that exist
 │   │   ├── MobileTopBar.tsx                  OK  under md, until there is more to tab between
-│   │   └── NavLink.tsx                       OK  client leaf, active state only
+│   │   ├── NavLink.tsx                       OK  client leaf, active state only
+│   │   └── OrgSwitcher.tsx                   OK  client; only shown above one org
 │   ├── documents/
 │   │   ├── StatusBadge.tsx                   OK  SOLE owner of status→color mapping
 │   │   └── UploadDocumentForm.tsx            OK  client; native selects so a plain form posts
 │   ├── subjects/
 │   │   └── CreateSubjectForm.tsx             OK  client; resets itself after a successful add
+│   ├── members/
+│   │   ├── InviteMemberForm.tsx              OK  client
+│   │   ├── MemberRow.tsx                     OK  client, role + remove
+│   │   ├── InvitationRow.tsx                 OK  client, copy link + revoke
+│   │   └── AcceptInvitationForm.tsx          OK  client
 │   ├── review/
 │   │   └── ReviewCard.tsx                    OK  source beside fields, approve or reject
 │   └── dashboard/
@@ -67,7 +74,7 @@ lapse/
 │   ├── services/
 │   │   ├── auth.service.ts                   OK  sign in/up/out, requireUser
 │   │   ├── organization.service.ts           OK  listMine, getBySlug, roleIn, create
-│   │   ├── membership.service.ts             —   invites, not yet built
+│   │   ├── membership.service.ts             OK  members, invites, accept, roles
 │   │   ├── subject.service.ts                OK  list, get, create
 │   │   ├── document.service.ts               OK  list, get, create, signed URLs
 │   │   ├── extraction.service.ts             —   folded into the job; no separate service
@@ -120,10 +127,11 @@ lapse/
 │       ├── 0002_subjects_documents_audit.sql OK  applied
 │       ├── 0003_extractions_and_reviews.sql OK  applied
 │       ├── 0004_reminders_notifications_jobs.sql OK  applied
-│       └── 0005_audit_and_jobs.sql           —
+│       └── 0005_invitations.sql               WIP written, not yet applied
 │
 ├── .github/workflows/keepalive.yml           OK  backup sweep trigger, offset by 90min
 ├── vercel.json                               OK  Vercel Cron, 02:00 UTC daily
+├── scripts/seed-admin.mjs                     OK  pnpm seed:admin; values from env
 ├── .claude/launch.json                       OK  dev server config
 ├── .env.example                              OK  committed on purpose
 │
