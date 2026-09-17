@@ -8,7 +8,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import { CopyField } from "@/components/landing/CopyField";
+import { DemoButton } from "@/components/landing/DemoButton";
 import { GateExample } from "@/components/landing/GateExample";
 import { PipelineFlow } from "@/components/landing/PipelineFlow";
 import { buttonVariants } from "@/components/ui/button";
@@ -85,9 +85,10 @@ const STACK = [
 ] as const;
 
 export function LandingPage() {
-  const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
-  const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
-  const hasDemo = Boolean(demoEmail && demoPassword);
+  // Read on the server and never sent to the browser — not the password, and
+  // not the address either. Naming the account on a public page invites
+  // someone to try it against other services; the button needs neither.
+  const hasDemo = Boolean(process.env.DEMO_EMAIL && process.env.DEMO_PASSWORD);
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -138,42 +139,35 @@ export function LandingPage() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            {/* The demo button lands on a login form with the address already
-                in it, so the only thing left to do is paste the password from
-                the panel below. The header's "Sign in" stays generic — that is
-                the entry for people who already have their own account. */}
-            <Link
-              href={
-                hasDemo
-                  ? `/login?email=${encodeURIComponent(demoEmail as string)}`
-                  : REPO_URL
-              }
-              className={buttonVariants({ size: "lg" })}
-            >
-              {hasDemo ? "Open the demo" : "Read the source"}
-              <ArrowRight className="size-4" />
-            </Link>
             {hasDemo ? (
+              <DemoButton />
+            ) : (
               <a
                 href={REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={buttonVariants({ variant: "secondary", size: "lg" })}
+                className={buttonVariants({ size: "lg" })}
               >
-                <CodeXml className="size-4" />
                 Read the source
+                <ArrowRight className="size-4" />
               </a>
-            ) : null}
+            )}
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "secondary", size: "lg" })}
+            >
+              <CodeXml className="size-4" />
+              Read the source
+            </a>
           </div>
 
           {hasDemo ? (
-            <div className="mt-10 max-w-sm divide-y rounded-xl border p-4">
-              <p className="pb-2 text-xs uppercase tracking-widest text-muted-foreground">
-                Demo account
-              </p>
-              <CopyField label="Email" value={demoEmail as string} />
-              <CopyField label="Password" value={demoPassword as string} />
-            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Opens a seeded organization with manager access. No sign-up, and
+              nothing to type.
+            </p>
           ) : null}
         </div>
 
