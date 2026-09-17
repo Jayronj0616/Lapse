@@ -17,7 +17,7 @@ upload  →  extract  →  gate  →  review?  →  track  →  remind  →  esc
 3. **Gate.** If confidence clears the threshold *and* an expiry date actually parsed, the document goes straight to `active`. Otherwise it goes to `needs_review`. Nothing uncertain is silently trusted.
 4. **Review.** A human opens the review queue, sees the extracted fields next to the source document, and approves or corrects them. The correction is stored — both the before and the after — so the extraction can be judged later.
 5. **Track.** Each active document has an expiry date and a responsible user.
-6. **Remind.** A daily sweep recomputes every document's state and emits reminders at 60, 30, 7, and 1 days out, then daily once overdue. Delivered by email and in-app.
+6. **Remind.** A daily sweep recomputes every document's state and emits reminders at 60, 30, 7 and 1 days out, then once on expiry. Delivered by email and in-app. Only the most urgent tier that applies is sent, so a document filed three days before it expires gets one notice rather than the whole ladder at once.
 7. **Escalate.** A 7-day reminder that goes unacknowledged escalates to the organization owner.
 
 ## Why it's built this way
