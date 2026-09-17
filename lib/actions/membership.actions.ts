@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { sendEmail } from "@/lib/email/resend";
+import { appUrl } from "@/lib/utils/app-url";
 import * as authService from "@/lib/services/auth.service";
 import * as membershipService from "@/lib/services/membership.service";
 import * as organizationService from "@/lib/services/organization.service";
@@ -19,10 +20,7 @@ import { text } from "./form-data";
 import type { FormState } from "./form-state";
 
 function inviteUrl(token: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000";
-  return `${base}/invite/${token}`;
+  return `${appUrl()}/invite/${token}`;
 }
 
 export async function inviteMemberAction(

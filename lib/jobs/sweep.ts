@@ -8,6 +8,7 @@ import type {
   DocumentType,
   ReminderTier,
 } from "@/lib/supabase/types";
+import { appUrl } from "@/lib/utils/app-url";
 import { daysUntil, todayISO } from "@/lib/utils/dates";
 import { statusFromExpiry } from "@/lib/utils/status";
 
@@ -388,13 +389,6 @@ type IgnoredReminder = {
   } | null;
   organizations: { name: string; slug: string } | null;
 };
-
-function appUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000"
-  );
-}
 
 async function emailFor(userId: string): Promise<string | null> {
   const supabase = createAdminClient();

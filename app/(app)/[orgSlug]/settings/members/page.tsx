@@ -8,6 +8,7 @@ import { MemberRow } from "@/components/members/MemberRow";
 import { requireUser } from "@/lib/services/auth.service";
 import * as membershipService from "@/lib/services/membership.service";
 import * as organizationService from "@/lib/services/organization.service";
+import { appUrl } from "@/lib/utils/app-url";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/validations/membership.schema";
 
 export const metadata: Metadata = {
@@ -15,10 +16,7 @@ export const metadata: Metadata = {
 };
 
 function inviteUrl(token: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000";
-  return `${base}/invite/${token}`;
+  return `${appUrl()}/invite/${token}`;
 }
 
 export default async function MembersPage({
