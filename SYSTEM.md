@@ -463,7 +463,7 @@ Already set on the project — none of these are secret:
 | `GEMINI_MODEL` | `gemini-3.6-flash` |
 | `EXTRACTION_CONFIDENCE_THRESHOLD` | `0.90` |
 
-Still to add, all of them secret or account-specific:
+**All set as of 2026-09-17.** The list below records where each came from:
 
 | Variable | Where it comes from |
 |---|---|
@@ -488,3 +488,26 @@ Turn it off at Project → Settings → Deployment Protection → Vercel Authent
 - Point an Inngest Cloud app at `https://lapse-chi.vercel.app/api/inngest` and sync it.
 - Add `APP_URL` and `CRON_SECRET` as GitHub repository secrets so `.github/workflows/keepalive.yml` can run. That workflow is the backup trigger for the sweep, and therefore the backup for the Supabase keepalive.
 - Confirm the cron by calling the endpoint by hand once with the bearer token, then checking that the dashboard heartbeat turns green.
+
+### Deployment verified — 2026-09-17
+
+Live and working at **https://lapse-chi.vercel.app**.
+
+Confirmed rather than assumed:
+
+- The landing page renders publicly, demo panel included.
+- `/api/cron/sweep` refuses an unauthenticated call with 401, and with the bearer token runs a full pass: `job_runs` row `succeeded` in 11s, 8 reminders created, 4 in-app notifications. The Supabase keepalive is therefore real from today.
+- `/api/inngest` answers `Unauthorized` to an unsigned request, which is the signing key working — in cloud mode the endpoint verifies signatures, so a clean refusal is the success case. The earlier `internal_server_error` was the missing key.
+- The demo credentials shown on the landing page were tested against Supabase's token endpoint and return a valid session.
+
+Two things worth recording about the setup:
+
+- **Vercel refuses to set a password-shaped value on a `NEXT_PUBLIC_` variable from the CLI**, and its dialog defaults the type to Secret, which is incompatible with the prefix — a Secret is never readable back, and Next must read this at build time to compile it into the browser bundle. It has to be Config, and a human has to confirm the exposure. A good guard.
+- **The Vercel/Inngest integration is a better path than syncing by hand.** It sets both keys on the project, registers the app against `/api/inngest` itself, and avoids the ordering problem where the endpoint needs the signing key before it will accept Inngest's handshake. Scope it to the single project rather than the whole account.
+
+Still outstanding:
+
+- `APP_URL` and `CRON_SECRET` as GitHub repository secrets, so `.github/workflows/keepalive.yml` can act as the backup trigger.
+- Resend, for reminder email. Without it the sweep reports `emailsSent: 0` and delivers in-app only, which is the intended degradation rather than a failure.
+- **Extraction has never run in production.** The sweep works and the endpoint authenticates, but nothing has yet proven Inngest can execute `extract-document` against the deployed app. That is the last untested path, and it is the one the project is about.
+- The demo password is currently a variant of a password used elsewhere. Change it.
