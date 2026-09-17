@@ -338,3 +338,17 @@ Decisions worth not re-litigating:
 Also added: `scripts/seed-admin.mjs` (`pnpm seed:admin`), which creates an admin account and an organization for it to own. Every value comes from the environment — nothing is hardcoded, because this repo is public and a committed admin password is found by scrapers within hours. It uses the Admin API rather than the sign-up path so `email_confirm` can be set, which is what makes a non-deliverable address like `admin@lapse.com` usable, and it is safe to run repeatedly.
 
 **Migration `0005` is written but not yet applied.** Same SQL Editor procedure as the others.
+
+---
+
+### Two runtime bugs the build could never have caught
+
+Both surfaced within minutes of actually signing in and running the app, after five phases of clean builds. Worth recording because neither is visible to TypeScript and both would have shipped.
+
+**1. Components cannot cross the server/client boundary.** `Sidebar` is a Server Component and was passing `icon={LayoutDashboard}` — a function — into `NavLink`, a Client Component. React refuses to serialize functions, so the whole organization layout threw at render. `NavLink` now takes `icon: React.ReactNode` and receives an already-rendered element; elements serialize, components do not. This is a serialization rule, not a type rule, which is exactly why every `pnpm build` stayed green while every authenticated page was broken.
+
+**2. The proxy was redirecting the machine endpoints to `/login`.** The auth guard is deny-by-default, and `/api/inngest` and `/api/cron/sweep` were in neither path list. Inngest could never register its functions, so no document would ever have been extracted — and the sweep would never have run, which also means the Supabase keepalive would never have fired and the database would have paused after a week. Both endpoints authenticate themselves (Inngest by request signature, the sweep by `CRON_SECRET`), so they belong in `OPEN_PATHS`. A cron job has no way to complain about a 307 to a login page; this would have been a silent production failure.
+
+The general lesson for this codebase: **a green build says nothing about whether a page renders.** Anything behind the auth guard needs to be loaded at least once before it is called done.
+
+**Local development also needs `INNGEST_DEV=1`.** Without it the SDK assumes cloud mode and fails with "in cloud mode but no signing key found". It must be left unset in production, where the signing key takes over.

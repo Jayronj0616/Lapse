@@ -66,27 +66,27 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        <NavLink href={`${base}/dashboard`} icon={LayoutDashboard}>
+        <NavLink href={`${base}/dashboard`} icon={<LayoutDashboard className="size-4" />}>
           Dashboard
         </NavLink>
-        <NavLink href={`${base}/documents`} icon={FileText}>
+        <NavLink href={`${base}/documents`} icon={<FileText className="size-4" />}>
           Documents
         </NavLink>
-        <NavLink href={`${base}/review`} icon={ClipboardCheck} badge={reviewCount}>
+        <NavLink href={`${base}/review`} icon={<ClipboardCheck className="size-4" />} badge={reviewCount}>
           Review
         </NavLink>
-        <NavLink href={`${base}/notifications`} icon={Bell} badge={unreadCount}>
+        <NavLink href={`${base}/notifications`} icon={<Bell className="size-4" />} badge={unreadCount}>
           Notifications
         </NavLink>
-        <NavLink href={`${base}/subjects`} icon={Truck}>
+        <NavLink href={`${base}/subjects`} icon={<Truck className="size-4" />}>
           Subjects
         </NavLink>
         {canSeeAudit ? (
-          <NavLink href={`${base}/audit`} icon={ScrollText}>
+          <NavLink href={`${base}/audit`} icon={<ScrollText className="size-4" />}>
             Audit log
           </NavLink>
         ) : null}
-        <NavLink href={`${base}/settings/members`} icon={Settings}>
+        <NavLink href={`${base}/settings/members`} icon={<Settings className="size-4" />}>
           Members
         </NavLink>
       </nav>

@@ -19,14 +19,24 @@ import { updateSession } from "@/lib/supabase/session";
 const AUTH_PATHS = ["/login", "/signup", "/auth"];
 
 /**
- * Reachable without a session, but *not* redirected away from when signed in.
+ * Reachable without a session, and *not* redirected away from when signed in.
  *
- * Invitation links have to work in both states: a new recipient needs to see
- * what they have been invited to before signing up, and an existing user needs
- * to be able to accept while already signed in. Bouncing them to `/` the way
- * `/login` does would make an invitation impossible to accept.
+ * Two different reasons appear here:
+ *
+ * `/invite` — invitation links have to work in both states. A new recipient
+ * needs to see what they have been invited to before signing up, and an
+ * existing user needs to accept while already signed in. Bouncing them to `/`
+ * the way `/login` does would make an invitation impossible to accept.
+ *
+ * `/api/inngest` and `/api/cron` — these are machine endpoints with their own
+ * authentication: Inngest verifies a request signature, and the sweep checks
+ * CRON_SECRET. Sending them through the session guard redirects them to
+ * `/login`, which means Inngest can never register its functions and Vercel
+ * Cron never runs the sweep — and because the sweep is also the Supabase
+ * keepalive, that failure is silent until the database pauses. A 307 to a
+ * login page is not something a cron job knows how to complain about.
  */
-const OPEN_PATHS = ["/invite"];
+const OPEN_PATHS = ["/invite", "/api/inngest", "/api/cron"];
 
 function matches(paths: string[], pathname: string): boolean {
   return paths.some(
