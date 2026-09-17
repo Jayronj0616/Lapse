@@ -82,6 +82,7 @@ pnpm dev
 | File | What it covers |
 |---|---|
 | `README.md` | This file — what Lapse is and how to run it |
+| `WALKTHROUGH.md` | Drive the whole system end to end, screen by screen |
 | `CLAUDE.md` | Working rules for Claude sessions on this repo |
 | `SYSTEM.md` | Architecture reference and running progress log |
 | `SCHEMA.md` | Tables, enums, and RLS policies |
