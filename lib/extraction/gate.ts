@@ -18,7 +18,22 @@ export type GateDecision =
   | { accept: true }
   | { accept: false; reason: string };
 
-const DEFAULT_THRESHOLD = 0.85;
+/**
+ * 0.90, not 0.85, and the difference is not arbitrary.
+ *
+ * Models do not emit a smooth distribution of confidences — they cluster hard
+ * on round numbers, overwhelmingly 0.85, 0.90 and 0.95. Putting the threshold
+ * exactly on one of those values means every document that lands on it is
+ * decided by which way the comparison happens to be written rather than by any
+ * judgement about the document.
+ *
+ * This was found the first time a deliberately ambiguous document was run
+ * through: the model correctly signalled hesitation by dropping to exactly
+ * 0.85, and a `< 0.85` gate accepted it anyway. At 0.90 only 0.90 and above
+ * pass, so a model expressing any doubt at all reaches a human — which is the
+ * stance this whole system takes.
+ */
+const DEFAULT_THRESHOLD = 0.9;
 
 /** Beyond this, a parsed year is a misread rather than a long-dated document. */
 const MAX_YEARS_AHEAD = 20;

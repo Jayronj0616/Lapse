@@ -358,3 +358,30 @@ The general lesson for this codebase: **a green build says nothing about whether
 **A blank optional date reported "Use a valid date".** Phase 3 made `expiryDate` nullable in the schema but left `document.actions.ts` reading it with `text()`, which returns `""` for an untouched input — and `""` fails the ISO regex. So leaving the field blank, the one action that is supposed to trigger extraction, was the one thing the form rejected. Now read with `emptyToNull()`, like every other optional field. The lesson is narrow and worth keeping: **when a field becomes nullable, the reader has to change too** — the schema alone does not make `""` into `null`.
 
 **The chosen file was lost on every failed submit.** A file input's selection does not survive the re-render, and its value cannot be set declaratively — browsers forbid it so a page cannot nominate files from your disk. Re-attaching a scan every time a date is wrong is a miserable way to fill in a form, so the form now keeps the `File` in a ref and restores it through `DataTransfer`, which is the one sanctioned way to write `input.files`. Wrapped in try/catch: where a browser refuses, the field just stays empty and `required` still prevents an empty submit.
+
+---
+
+### First real extraction, and what it taught us
+
+The ambiguous sample fixture was run through the pipeline on 2026-09-17. Attempt 1 failed because `gemini-2.5-flash` is no longer offered to new projects — Google's API says outright which id to use instead, and the default is now `gemini-3.6-flash`. Treat that constant as a moving target, not a fixed value.
+
+Attempt 2 succeeded at confidence 0.85 and returned:
+
+```json
+{ "documentType": "vehicle_registration",
+  "documentNumber": "CR-2O25-OO479l3",
+  "issuer": "Metro Transport Registry Authority",
+  "issueDate": "2025-09-11",
+  "expiryDate": "2027-04-03",
+  "confidence": 0.85 }
+```
+
+Two things went right. It transcribed the deliberately mangled characters faithfully — letter `O` for zero, lowercase `l` for one — rather than "helpfully" correcting them, which is the correct behaviour for transcription. And it resolved the ambiguous `03/04/27` by reading it consistently with the other date on the page, which is exactly the reasoning the prompt asks for.
+
+**One thing went wrong, and it was the gate.** The threshold was 0.85 and the check is `confidence < threshold`, so a returned 0.85 passed by a hair and the document went straight to `active`. The model had correctly signalled hesitation and the gate ignored it.
+
+The cause is general, not a one-off: **models do not produce a smooth distribution of confidences — they cluster hard on 0.85, 0.90 and 0.95.** A threshold sitting exactly on one of those common values means documents landing there are decided by which way the comparison is written rather than by anything about the document. The threshold is now 0.90, so only 0.90 and above pass and any expressed doubt reaches a human.
+
+Worth keeping in mind when tuning this later: the useful question is not "what accuracy do we want" but "which of the three or four values this model actually emits should count as confident".
+
+Also confirmed working end to end: the event fired on upload, the job ran its five steps, attempt 1's failure was recorded with its full error rather than vanishing, and attempt 2 was recorded alongside it. Keeping one row per attempt is what made this diagnosable at all.

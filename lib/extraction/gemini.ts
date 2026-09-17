@@ -20,7 +20,10 @@ import type { ExtractionInput, ExtractionOutcome } from "./provider";
  * share of compliance documents arrive as scanned PDFs rather than photos.
  */
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// Override with GEMINI_MODEL. Google retires model ids and refuses them for
+// new projects, so treat this default as a moving target rather than a
+// constant — the API says plainly which id to use when it rejects one.
+const DEFAULT_MODEL = "gemini-3.6-flash";
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export async function extractWithGemini(
