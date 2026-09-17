@@ -507,7 +507,14 @@ Two things worth recording about the setup:
 
 Still outstanding:
 
-- `APP_URL` and `CRON_SECRET` as GitHub repository secrets, so `.github/workflows/keepalive.yml` can act as the backup trigger.
 - Resend, for reminder email. Without it the sweep reports `emailsSent: 0` and delivers in-app only, which is the intended degradation rather than a failure.
 - **Extraction has never run in production.** The sweep works and the endpoint authenticates, but nothing has yet proven Inngest can execute `extract-document` against the deployed app. That is the last untested path, and it is the one the project is about.
 - The demo password is currently a variant of a password used elsewhere. Change it.
+
+### Both sweep triggers verified, and idempotency with them
+
+`APP_URL` and `CRON_SECRET` are set as GitHub repository secrets and the backup workflow has been run by hand. Two `job_runs` rows exist for 2026-09-17: one from a direct call at 06:36, one from GitHub Actions at 06:55, both `succeeded` at 8 items.
+
+The number that actually matters is the reminder count: **8 after the second run, not 16.** The unique constraint on `(document_id, tier, channel)` absorbed the whole second pass. That is not a nicety — Vercel Cron at 02:00 and GitHub Actions at 03:30 both fire every day against the same data, so without it every reminder would be sent twice, every day, to every user.
+
+Worth keeping in mind when adding anything else to the sweep: **it runs at least twice a day by design.** Any new side effect needs its own idempotency key, or it needs to be safe to repeat.
