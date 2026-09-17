@@ -137,6 +137,7 @@ lapse/
 │
 ├── README.md                                 OK
 ├── CLAUDE.md                                 OK
+├── WALKTHROUGH.md                             OK  step-by-step; what to expect, what breaks
 ├── SYSTEM.md                                 OK
 ├── SCHEMA.md                                 OK
 ├── STRUCTURE.md                              OK

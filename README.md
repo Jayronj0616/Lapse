@@ -93,10 +93,10 @@ pnpm dev
 
 ## Status
 
-**Phases 1–5 built.** Authentication and organizations; subjects and documents; extraction behind a swappable provider interface with a confidence gate; a human review queue; and the daily sweep that sends escalating reminders and doubles as the database keepalive.
+**Phases 1–6 built, and extraction verified against real documents.** Authentication and organizations; subjects and documents; extraction behind a swappable provider interface with a confidence gate; a human review queue; a daily sweep that sends escalating reminders and doubles as the database keepalive; and invitations with role-based access.
 
-All migrations through `0004` are applied. Extraction and email are written but untested — they need `GEMINI_API_KEY`, `RESEND_API_KEY` and the Inngest keys set.
+All migrations through `0005` are applied. The pipeline has been run end to end: upload, extract, gate, review, sweep.
 
-Next is Phase 6: seeded demo data, a member invite flow, and the organization switcher that invites finally make meaningful.
+Not yet deployed. What that needs: `RESEND_API_KEY` for reminder email, an Inngest app for production job runs (`INNGEST_DEV` must be unset there), and the Vercel Cron schedule in `vercel.json` with `CRON_SECRET` set.
 
 See `SYSTEM.md` for the build order and the running progress log, and `STRUCTURE.md` for what exists file by file.
