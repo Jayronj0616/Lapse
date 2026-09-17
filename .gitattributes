@@ -1,0 +1,15 @@
+# Without this, Git treats the PDF fixtures as text and rewrites their line
+# endings on checkout, which corrupts them. A clone would get files that no
+# longer open, and the demo seed would upload them anyway.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+
+# Everything else is text; normalise to LF in the repository so a Windows
+# checkout does not show every file as modified.
+* text=auto eol=lf
