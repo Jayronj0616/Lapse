@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Activity,
   ArrowRight,
@@ -8,6 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { LoginModal } from "@/components/auth/LoginModal";
 import { DemoButton } from "@/components/landing/DemoButton";
 import { GateExample } from "@/components/landing/GateExample";
 import { PipelineFlow } from "@/components/landing/PipelineFlow";
@@ -107,12 +107,7 @@ export function LandingPage() {
             <CodeXml className="size-4" />
             Source
           </a>
-          <Link
-            href="/login"
-            className={buttonVariants({ variant: "secondary", size: "sm" })}
-          >
-            Sign in
-          </Link>
+          <LoginModal />
         </div>
       </header>
 
@@ -246,12 +241,7 @@ export function LandingPage() {
               <CodeXml className="size-4" />
               GitHub
             </a>
-            <Link
-              href="/login"
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              Sign in
-            </Link>
+            <LoginModal />
           </div>
         </div>
       </footer>
