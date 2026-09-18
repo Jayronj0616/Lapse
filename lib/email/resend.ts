@@ -18,7 +18,9 @@ export type SendResult =
 export async function sendEmail(input: {
   to: string;
   subject: string;
+  /** Always sent. Clients that block or cannot render HTML show this. */
   text: string;
+  html?: string;
 }): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.REMINDER_FROM_EMAIL;
@@ -37,6 +39,7 @@ export async function sendEmail(input: {
       to: input.to,
       subject: input.subject,
       text: input.text,
+      ...(input.html ? { html: input.html } : {}),
     });
 
     if (error) return { ok: false, error: error.message };

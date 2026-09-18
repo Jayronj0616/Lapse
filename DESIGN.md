@@ -59,6 +59,26 @@ Two things to hold onto: `status-review` is deliberately off the red-to-green sc
 
 ---
 
+## Email
+
+Email is the one surface where the token rule does not apply, and the exception is deliberate rather than an oversight.
+
+`lib/email/templates.ts` uses literal sRGB hex. It has to: mail clients do not understand `oklch()`, a CSS custom property cannot cross into an email at all, and there is no stylesheet to carry one — every style is inline on the element. The hex values there are the light-mode `--status-*` pairs from `globals.css` converted to sRGB, so an urgent reminder is the same orange as an urgent status chip.
+
+| Tier | Token | Hex |
+|---|---|---|
+| `t60` | `status-soon` | `#006bbb` on `#dbf1ff` |
+| `t30` | `status-warn` | `#946900` on `#ffecc1` |
+| `t7`, `t1` | `status-urgent` | `#bd4600` on `#ffe3ce` |
+| `overdue`, escalation | `status-expired` | `#d01d21` on `#ffe3dd` |
+
+**If the palette here changes, convert the new values — do not pick a hex that looks close.** The whole point is that the email and the app agree about what urgent looks like.
+
+Two further constraints worth stating, because they are easy to undo by habit:
+
+- **Tables for layout, inline styles, no flexbox or grid.** A decade-old Outlook renderer has to cope with this. It is not how the app is written and it should not be made to match.
+- **Every message sends both HTML and plain text.** The text part is not vestigial — it is what renders in a client that blocks HTML, what a screen reader reads, and what keeps an operational notice out of a promotions tab. Both parts carry the same facts.
+
 ## Typography
 
 Poppins throughout, via `next/font`.

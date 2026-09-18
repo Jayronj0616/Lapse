@@ -508,7 +508,7 @@ Two things worth recording about the setup:
 Still outstanding:
 
 - Resend, for reminder email. Without it the sweep reports `emailsSent: 0` and delivers in-app only, which is the intended degradation rather than a failure.
-- **Extraction has never run in production.** The sweep works and the endpoint authenticates, but nothing has yet proven Inngest can execute `extract-document` against the deployed app. That is the last untested path, and it is the one the project is about.
+- ~~**Extraction has never run in production.**~~ Verified 2026-09-18 — see "Extraction, proven in production" below.
 - The demo password is currently a variant of a password used elsewhere. Change it.
 
 ### Both sweep triggers verified, and idempotency with them
@@ -548,3 +548,123 @@ It is a form POST rather than a link, so link prefetching and crawlers do not mi
 Verified on the live deployment: zero occurrences of either value in the HTML, and none in any client chunk it loads.
 
 `NEXT_PUBLIC_DEMO_EMAIL` and `NEXT_PUBLIC_DEMO_PASSWORD` were removed from Vercel. `CopyField.tsx` was deleted — it had no remaining callers.
+
+### Extraction, proven in production — 2026-09-18
+
+The last untested path is now tested. A document uploaded through the live app at 01:43:33Z reached its final state at 01:43:47Z — **fourteen seconds**, upload to resolved status, with no manual intervention.
+
+The whole chain ran: Server Action → Supabase Storage → `inngest.send` → Inngest Cloud → the deployed `/api/inngest` → Gemini → the confidence gate → a status write. Every link in that sequence had been verified in isolation before today and never once end to end.
+
+What the run actually produced:
+
+| | |
+|---|---|
+| Provider / model | `gemini` / `gemini-3.6-flash` |
+| Attempt | 1 — no retries |
+| Confidence | 1.0 |
+| Gate | accepted (≥ 0.90) |
+| Final status | `expiring`, derived from an expiry six days out |
+| Tokens | 1378 total (950 prompt) |
+
+All four fields came back populated and correctly typed: document number, issuer, issue date, expiry date.
+
+**Two things worth recording.**
+
+**The model id was the standing risk, and it was unfounded.** `gemini-3.6-flash` is the default in `lib/extraction/gemini.ts`, carrying a comment that Google retires ids and refuses them for new projects. Before asking anyone to upload anything, the models endpoint was listed against the live key — the id is still offered. That check costs one request and removes the most likely cause of a production-only failure, so it is worth repeating whenever extraction starts failing in a way that looks like the API refusing the call.
+
+**A confidence of exactly 1.0 deserves a raised eyebrow, not celebration.** The gate's own design note says models cluster their confidences on round numbers rather than expressing a calibrated belief, and 1.0 is the roundest of them. The extraction happened to be right, so the gate made the correct call here — but the reason the threshold sits at 0.90 is precisely that this number is a self-report, not a measurement. Nothing to change; it is the sort of thing that reads as reassuring and should not.
+
+The uploaded document lives in the demo organization and will disappear the next time `seed:demo` resets it, which is the intended behaviour rather than something to clean up.
+
+### Email is unconfigured, and the seeded addresses are a problem
+
+`RESEND_API_KEY` and `REMINDER_FROM_EMAIL` are absent from Vercel production — confirmed against the project, not assumed. The code path is complete and degrades exactly as designed: `sendEmail` checks both variables up front, returns a result rather than throwing, and the sweep logs and carries on. `emailsSent: 0` is the system reporting that it is unconfigured, not that it is broken.
+
+Two obstacles sit between here and working email, and neither is the API key.
+
+**Every existing email reminder is already marked sent.** Delivery selects on `sent_at is null`, and the sweep stamps `sent_at` after an email attempt *whether or not the send succeeded*. Three prior runs each attempted a send, failed on the missing configuration, and stamped the row anyway. All four email-channel reminders are now `sent_at not null` with nothing ever delivered, and the upsert will not recreate them because `(document_id, tier, channel)` is unique. **Adding the Resend keys alone will therefore produce another `emailsSent: 0`, which will look like the fix failed.** The rows have to be un-stamped once.
+
+The stamp-regardless rule is right for a bounce — a bad address should not make the sweep retry the same failing send every day forever. It is wrong for "email is not configured", which is global and temporary rather than per-address and permanent. The code cannot currently tell those apart, and the cost of the conflation is that a misconfiguration silently consumes every reminder it touches with no record of which ones were genuinely delivered. Worth separating: a missing-configuration failure should leave `sent_at` null.
+
+**The seeded recipients are addresses nobody owns.** Every reminder resolves to `admin@lapse.com` or `demo@lapse.com`, and `lapse.com` is a real domain registered to someone else. With Resend's shared `onboarding@resend.dev` sender those sends are rejected outright, so nothing can be proven. With a verified domain of one's own they would be *delivered* — real mail to strangers, which is considerably worse than not working. The seed needs addresses that are genuinely controlled before email is switched on at all.
+
+### An orphaned document now reaches the owners
+
+`responsible_user_id` is set to the uploader when a document is filed, so documents do not arrive unassigned — the first description of this gap, as "documents uploaded without an owner", was wrong. The real path to null is worse than that.
+
+Both `responsible_user_id` and `uploaded_by` are `on delete set null`. Deleting a profile empties them in the same instant, so **a member leaving orphans every document they were answerable for**. The old delivery code checked `responsible_user_id` and, finding it null, sent nothing at all — no email, no in-app notification — while still writing the reminder row and stamping `sent_at`. The database recorded the work as done and no human was told. Handover is exactly when a compliance document lapses, and it was the one moment the system fell silent.
+
+Falling back to the uploader would not have helped, since that column empties alongside. The fallback is the organization's **owners**, who are the only group guaranteed to exist: migration 0001 has a trigger refusing to remove or demote the last one. It also matches what escalation already does, so an unassigned document and an ignored one now surface to the same people.
+
+The change collapsed some duplication on the way. `reminderEmail()` had been called separately in each channel branch with identical arguments; recipients and message are now resolved once before the branch, and each channel only decides how to deliver them.
+
+`tsc --noEmit` and `eslint` both clean. Verified that the fallback query returns one owner for each seeded organization.
+
+### Email proven end to end, and a trap in how it was configured
+
+A reminder identical to the sweep's own output was delivered to a real inbox through Resend — accepted with id `01a0b244`, plain text, `t7` tier, rendered from a faithful reproduction of `lib/email/templates.ts`. The API key, the `onboarding@resend.dev` sender and the template are all confirmed working.
+
+**The account constraint that shapes everything else:** Resend's shared sender only delivers to the address the Resend account itself is registered under. Reminders to any other recipient are refused. That is fine for proving the path and useless for a demo, and it is the same blocker as the seeded `@lapse.com` addresses — both dissolve the moment a domain is verified, and neither can be worked around without one.
+
+**Two configuration traps worth remembering.**
+
+`REMINDER_FROM_EMAIL` was empty in `.env.local` while appearing filled in on screen — an unsaved editor buffer. `sendEmail` requires both variables and returns early if either is missing, so a half-configured environment is indistinguishable from an unconfigured one. Worth checking the file on disk rather than the editor when this path misbehaves.
+
+More subtly: **Vercel snapshots environment variables when a deployment is created**, and `vercel --prod` deduplicates identical source rather than rebuilding — so adding a variable and redeploying can quietly produce no new deployment and no new snapshot. `vercel --prod --force` is what actually rebuilds. Production now carries both values, entered by pipe rather than by hand, on deployment `j1jwscgo2`.
+
+Also noted while working through it: Supabase's built-in SMTP allows only a couple of messages an hour, which is enough to lock you out of your own sign-up flow. It caps every confirmation, reset and invitation, so the **invitations feature cannot work for real on it** — another item waiting on a verified domain, since custom SMTP needs one. And the Supabase **Site URL** was still `http://localhost:3000`, which is why confirmation links landed on a dead page — note that the verification itself succeeds regardless, so an account ends up confirmed despite the error the person sees. Changed to the deployed URL on 2026-09-18. Supabase's public `/auth/v1/settings` does not expose `site_url`, so this is not verifiable from the repo without a management API token; the next confirmation or reset link is what will show it.
+
+### `retries: 3` was decorative — a memoised step cannot be retried
+
+The first real upload after the email work failed permanently on a transient error. Gemini answered *"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."* and the document went to `extraction_failed` within seconds, with exactly **one** `extractions` row despite `retries: 3`.
+
+The cause is a property of Inngest that is easy to get backwards. `step.run` **memoises its result**. The provider call lived in a step that *succeeded* — it returned `{ ok: false }` rather than throwing — and the throw happened afterwards, outside any step:
+
+```ts
+const outcome = await step.run("call-provider", …);   // succeeds, returns ok:false
+const attempt = await step.run("record-attempt", …);  // succeeds
+if (!outcome.ok) throw new Error(…);                  // outside the steps
+```
+
+A throw outside a step replays the function from the top and serves every completed step from cache. The model was never called again. All three retries were spent re-throwing a cached failure in milliseconds, then `onFailure` parked the document. The old comment claimed "thrown rather than returned, so Inngest retries" — it did retry, but it retried a computation whose answer was already stored.
+
+**The rule worth carrying forward: a step that can fail must fail *inside* itself.** Returning a failure value from a step tells the runner the work succeeded, and no retry configuration can recover from that.
+
+The provider call and the record of the attempt are now one step which throws on failure. Two consequences beyond the retry working:
+
+- **One `extractions` row per real attempt.** Previously a retried document recorded a single attempt no matter how many times it was tried, which quietly made the failure statistics meaningless — the table exists to answer how often the provider is wrong, and it was undercounting by design.
+- A provider success followed by a failed insert now re-runs the model call. That costs a redundant request in a rare case, and is the right trade against recording nothing.
+
+**Why this never surfaced before:** the sweep re-enqueues anything in `extraction_failed` older than an hour, so documents did eventually recover — a day late, on the next sweep, looking like a slow success rather than a broken retry. A self-healing mechanism downstream of a broken one is an effective way to never find out.
+
+### Email works in production — 2026-09-18
+
+`emailsSent: 1`. The first non-zero the sweep has ever reported, on run `3e93c071`, delivering a `t7` reminder for a real document to a real inbox through the deployed app.
+
+The full chain is now proven end to end: upload → Storage → Inngest → Gemini → confidence gate → status → sweep → tier → Resend → inbox.
+
+**The retry fix proved itself on the way.** The same document failed extraction on attempt 1 with Gemini's "high demand" refusal under the old code, then succeeded on attempt 2 under the new code — and the existence of a *second* `extractions` row is itself the proof, since the memoised-step bug could only ever produce one.
+
+Two operational notes from getting there.
+
+**A Vercel variable can be present on the project and absent from the runtime.** `vercel env ls` listed both email variables, and `vercel env pull` confirmed both existed, yet the deployed sweep still logged "RESEND_API_KEY and REMINDER_FROM_EMAIL must both be set." Removing both and re-adding them from known-good values by pipe — never by hand, where an unsaved editor buffer or a stray character can silently win — followed by `vercel --prod --force`, fixed it. When an environment variable seems set but the runtime disagrees, **the runtime is right**; re-enter the value rather than re-reading the dashboard. `vercel env pull` masks sensitive values as `[SENSITIVE]`, so it confirms existence and never content.
+
+**The `sent_at` trap is real, and it bit exactly as predicted.** The failed send stamped the reminder as sent, so the corrected deployment had nothing pending and would have reported another `emailsSent: 0`. Clearing `sent_at` on that one row is what let the retry happen. This is the second time in one session that a configuration failure silently consumed a reminder, which is the argument for separating "not configured" from "bounced" in `sendEmail` — a missing-configuration failure should leave `sent_at` null.
+
+### The reminder emails have a design now, and still send plain text
+
+The emails were plain text by an explicit decision recorded at the top of `lib/email/templates.ts`: operational notices, renders everywhere, never lands in a promotions tab. That reasoning holds, so the fix was not to replace the text but to send **both parts**. Every message now carries an HTML body and the original plain-text body, and a client that blocks HTML, a screen reader, or a plain-text-only reader still gets the complete message.
+
+The design is one card with a single accent colour, a status pill, a detail table, and one action. The accent is chosen by tier, so severity is legible before a word is read.
+
+**Colours are literal hex, and this is the one place in the project where that is correct.** `globals.css` holds the real tokens in `oklch()`, which no mail client understands, and a CSS custom property cannot cross into an email at all — there is no stylesheet, every style is inline on the element. The values in `templates.ts` are the light-mode `--status-*` pairs converted to sRGB, so an urgent reminder is the same orange as an urgent status chip in the app. This is now written down in DESIGN.md under a new **Email** section, along with the conversion table, precisely so a later session does not "fix" the hardcoded colours and silently break the correspondence.
+
+The tier-to-token mapping follows DESIGN.md's severity scale rather than inventing one: `t60` is blue because a document two months out is information, `t30` amber, `t7`/`t1` orange, and `overdue` red. Escalation always uses the expired palette — it only fires after three days of silence, so it is never the mild end of the scale.
+
+Three things that are easy to undo by habit, all noted in DESIGN.md: tables for layout, styles inline on every element, and no flexbox or grid. Email HTML is not web HTML and should not be made to match the app.
+
+User-supplied and model-supplied values are escaped before interpolation. A document title arrives from a person or from Gemini, and neither is a trustworthy source of markup.
+
+Verified by rendering all five tiers plus the escalation, then sending the `t7` and `overdue` variants through Resend to a real inbox using the actual template module rather than a reimplementation of it.
+
+**Rendering a `.ts` module outside Next turned out to be worth the trouble** and is reusable: Node 24 strips types natively, so the only obstacle is the `@/` path alias. A twelve-line resolve hook registered with `node --import` maps `@/` to the project root and tries `.ts`, `.tsx` and `/index.ts` in turn. That makes any module in the project runnable from a scratch script, which is how the email was previewed and sent without standing up a dev server or duplicating the template.

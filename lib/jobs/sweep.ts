@@ -205,22 +205,29 @@ export async function runSweep(): Promise<{
       const url = `${appUrl()}/${organization.slug}/documents/${reminder.document_id}`;
       const gap = daysUntil(document.expiry_date);
 
-      if (reminder.channel === "in_app") {
-        if (document.responsible_user_id) {
-          const { subject, text } = reminderEmail({
-            tier: reminder.tier,
-            organizationName: organization.name,
-            documentTitle: document.title,
-            documentType: document.type,
-            subjectLabel: document.subjects?.label ?? null,
-            expiryDate: document.expiry_date,
-            daysUntil: gap,
-            url,
-          });
+      // Who hears about it. Resolved once, because both channels address the
+      // same people and the message is identical either way.
+      const recipients = await recipientsFor(
+        reminder.organization_id,
+        document.responsible_user_id,
+      );
 
+      const { subject, text, html } = reminderEmail({
+        tier: reminder.tier,
+        organizationName: organization.name,
+        documentTitle: document.title,
+        documentType: document.type,
+        subjectLabel: document.subjects?.label ?? null,
+        expiryDate: document.expiry_date,
+        daysUntil: gap,
+        url,
+      });
+
+      if (reminder.channel === "in_app") {
+        for (const userId of recipients) {
           await supabase.from("notifications").insert({
             organization_id: reminder.organization_id,
-            user_id: document.responsible_user_id,
+            user_id: userId,
             reminder_id: reminder.id,
             title: subject,
             body: text,
@@ -237,25 +244,17 @@ export async function runSweep(): Promise<{
       }
 
       // Email
-      const email = document.responsible_user_id
-        ? await emailFor(document.responsible_user_id)
-        : null;
+      for (const userId of recipients) {
+        const email = await emailFor(userId);
+        if (!email) continue;
 
-      if (email) {
-        const { subject, text } = reminderEmail({
-          tier: reminder.tier,
-          organizationName: organization.name,
-          documentTitle: document.title,
-          documentType: document.type,
-          subjectLabel: document.subjects?.label ?? null,
-          expiryDate: document.expiry_date,
-          daysUntil: gap,
-          url,
-        });
-
-        const result = await sendEmail({ to: email, subject, text });
+        const result = await sendEmail({ to: email, subject, text, html });
         if (result.ok) summary.emailsSent += 1;
-        else console.error(`[sweep] email for ${reminder.id}:`, result.error);
+        else
+          console.error(
+            `[sweep] email for ${reminder.id} to ${userId}:`,
+            result.error,
+          );
       }
 
       // Marked sent regardless. A bounced address should not make the sweep
@@ -303,7 +302,7 @@ export async function runSweep(): Promise<{
         const ownerEmail = await emailFor(owner.user_id);
         if (!ownerEmail) continue;
 
-        const { subject, text } = escalationEmail({
+        const { subject, text, html } = escalationEmail({
           organizationName: organization.name,
           documentTitle: document.title,
           responsibleName,
@@ -312,7 +311,7 @@ export async function runSweep(): Promise<{
           url: `${appUrl()}/${organization.slug}/documents/${reminder.document_id}`,
         });
 
-        await sendEmail({ to: ownerEmail, subject, text });
+        await sendEmail({ to: ownerEmail, subject, text, html });
 
         await supabase.from("notifications").insert({
           organization_id: reminder.organization_id,
@@ -389,6 +388,41 @@ type IgnoredReminder = {
   } | null;
   organizations: { name: string; slug: string } | null;
 };
+
+/**
+ * Who a reminder is addressed to.
+ *
+ * Normally the responsible person — set to the uploader when the document is
+ * filed, and reassigned from there. The interesting case is when that column
+ * is null.
+ *
+ * Both `responsible_user_id` and `uploaded_by` are `on delete set null`, so
+ * deleting a profile empties them in the same instant. A member leaving
+ * therefore orphans every document they were answerable for, and the old
+ * behaviour was to send nothing at all — no email, no in-app notification —
+ * while still writing the reminder row, so the database looked like the work
+ * had been done. Handover is exactly when a document lapses, and it was the
+ * one moment the system went quiet.
+ *
+ * Falling back to the uploader does not help, because that column empties
+ * alongside. Owners are the only group guaranteed to exist: migration 0001
+ * has a trigger refusing to remove or demote the last one.
+ */
+async function recipientsFor(
+  organizationId: string,
+  responsibleUserId: string | null,
+): Promise<string[]> {
+  if (responsibleUserId) return [responsibleUserId];
+
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("memberships")
+    .select("user_id")
+    .eq("organization_id", organizationId)
+    .eq("role", "owner");
+
+  return (data ?? []).map((row) => row.user_id);
+}
 
 async function emailFor(userId: string): Promise<string | null> {
   const supabase = createAdminClient();

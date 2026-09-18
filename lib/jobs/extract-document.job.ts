@@ -101,45 +101,59 @@ export const extractDocument = inngest.createFunction(
       };
     });
 
+    // The provider call and the record of it are one step, and the step is
+    // what throws.
+    //
+    // Inngest memoises step results, so a throw *outside* a step replays the
+    // function from the top and serves every completed step from cache. The
+    // model is never called a second time: the whole retry budget is spent
+    // re-throwing a cached failure in milliseconds, and a transient "model
+    // overloaded" from the provider permanently fails the document. Failing
+    // inside the step is what makes `retries` above mean anything at all.
+    //
+    // The attempt is recorded either way, before the throw, so a retried
+    // document leaves one row per real attempt rather than a single row no
+    // matter how many times it was tried. Keeping failures is what makes
+    // "how often is this provider wrong, and on what" answerable.
     const outcome = await step.run("call-provider", async () => {
       const provider = getExtractionProvider();
-      return provider({ base64: file.base64, mimeType: file.mimeType });
-    });
+      const result = await provider({
+        base64: file.base64,
+        mimeType: file.mimeType,
+      });
 
-    // The attempt is recorded whether it succeeded or not. Keeping failures is
-    // what makes "how often is this provider wrong, and on what" answerable.
-    const attempt = await step.run("record-attempt", async () => {
       const { count } = await supabase
         .from("extractions")
         .select("id", { count: "exact", head: true })
         .eq("document_id", documentId)
         .eq("organization_id", organizationId);
 
-      const attemptNumber = (count ?? 0) + 1;
+      const attempt = (count ?? 0) + 1;
 
       await supabase.from("extractions").insert({
         organization_id: organizationId,
         document_id: documentId,
-        provider: outcome.provider,
-        model: outcome.model,
-        attempt: attemptNumber,
-        status: outcome.ok ? "succeeded" : "failed",
-        confidence: outcome.ok ? outcome.fields.confidence : null,
-        extracted: outcome.ok ? (outcome.fields as unknown as Json) : null,
-        raw_response: (outcome.raw ?? null) as Json,
-        error: outcome.ok ? null : outcome.error,
+        provider: result.provider,
+        model: result.model,
+        attempt,
+        status: result.ok ? "succeeded" : "failed",
+        confidence: result.ok ? result.fields.confidence : null,
+        extracted: result.ok ? (result.fields as unknown as Json) : null,
+        raw_response: (result.raw ?? null) as Json,
+        error: result.ok ? null : result.error,
       });
 
-      return attemptNumber;
-    });
+      if (!result.ok) {
+        // Inside the step, so Inngest retries the model call itself. When the
+        // budget runs out, onFailure above marks the document
+        // extraction_failed.
+        throw new Error(
+          `Extraction attempt ${attempt} failed: ${result.error}`,
+        );
+      }
 
-    if (!outcome.ok) {
-      // Thrown rather than returned, so Inngest retries. When the budget runs
-      // out, onFailure above marks the document extraction_failed.
-      throw new Error(
-        `Extraction attempt ${attempt} failed: ${outcome.error}`,
-      );
-    }
+      return result;
+    });
 
     return step.run("apply-result", async () => {
       const fields: ExtractedFields = outcome.fields;

@@ -112,11 +112,11 @@ lapse/
 │   │   └── gate.ts                           OK  confidence, date sanity, type agreement
 │   ├── jobs/
 │   │   ├── client.ts                         OK  Inngest client + event contract
-│   │   ├── extract-document.job.ts           OK  lapse/document.uploaded, 3 retries
-│   │   └── sweep.ts                          OK  statuses, retries, reminders, escalation
+│   │   ├── extract-document.job.ts           OK  retries the model call, not a cache
+│   │   └── sweep.ts                          OK  falls back to owners when unassigned
 │   ├── email/
-│   │   ├── resend.ts                         OK  returns a result, never throws
-│   │   └── templates.ts                      OK  plain text on purpose
+│   │   ├── resend.ts                         OK  sends html + text; verified in prod
+│   │   └── templates.ts                      OK  html + plain text, tier-coloured
 │   ├── utils/
 │   │   ├── slug.ts                           OK  slugify + collision suffix
 │   │   ├── dates.ts                          OK  UTC calendar days, no TZ drift
