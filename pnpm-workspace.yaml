@@ -1,3 +1,9 @@
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+overrides:
+  '@grpc/grpc-js@>=1.14.0 <1.14.5': '>=1.14.5'
+  '@modelcontextprotocol/sdk@>=1.12.0 <1.31.0': '>=1.31.0'
+  sharp@<0.35.5: '>=0.35.5'
+  source-map-js@>=1.0.0 <1.2.2: '>=1.2.2'
