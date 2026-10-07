@@ -61,6 +61,14 @@ pnpm supabase db push        # applies migrations to your Supabase project
 pnpm dev
 ```
 
+### Tests
+
+```bash
+pnpm test
+```
+
+Unit tests cover the pure logic the reminder pipeline depends on: the confidence gate, expiry date math, status tones and slug generation.
+
 ### Environment variables
 
 | Variable | Purpose |
