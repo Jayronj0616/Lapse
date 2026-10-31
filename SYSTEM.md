@@ -691,3 +691,9 @@ The `check` job failed on its first pull request, at `tsc --noEmit`, with `Canno
 
 `pnpm typecheck` is now `next typegen && tsc --noEmit`, the order the Next docs give for CI, and the workflow runs that instead of bare `tsc`. Use it locally too: a new worktree has the same empty `.next` as CI.
 
+
+### OpenPanel analytics — 2026-10-31
+
+Anonymous product analytics via `@openpanel/nextjs`, inert until `NEXT_PUBLIC_OPENPANEL_CLIENT_ID` is set (the only gate; no `VERCEL_ENV` check). Events go through a first-party proxy at `/api/op` so ad blockers don't drop them. `/api/op` had to be added to the proxy's `OPEN_PATHS`, otherwise signed-out visitors were redirected to `/login` instead of getting `op1.js`.
+
+Events: `signed_up`, `logged_in`, `document_uploaded` (the core action). No PII and no `identify`. Because the success path of these Server Actions ends in `redirect()`, the client never sees a success state; the action sets a 60-second non-httpOnly cookie (`lapse_event`, value is the event name only) and `AnalyticsScript` reports and clears it on the next page. The one exception is sign-up with email confirmation, which returns a message instead of redirecting, so `SignUpForm` tracks it directly.
