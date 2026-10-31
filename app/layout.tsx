@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AnalyticsScript } from "@/components/AnalyticsScript";
 
 // Poppins is not a variable font, so the weights we actually use are listed
 // explicitly. Adding a weight here is a deliberate act — see DESIGN.md.
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">{children}
+        <AnalyticsScript />
+      </body>
     </html>
   );
 }
