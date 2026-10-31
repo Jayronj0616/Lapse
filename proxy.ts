@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { updateSession } from "@/lib/supabase/session";
+import { SIGNED_IN_HOME } from "@/lib/utils/routes";
 
 /**
  * Next 16 renamed the `middleware` convention to `proxy`. Same behaviour, and
@@ -29,9 +30,10 @@ const AUTH_PATHS = ["/login", "/signup", "/auth"];
  * the way `/login` does would make an invitation impossible to accept.
  *
  * `/` — the public landing page. It is the only screen most visitors to this
- * project will ever load, so it cannot sit behind the auth guard. The page
- * itself redirects a signed-in user onward, which is why it is listed here
- * rather than under AUTH_PATHS.
+ * project will ever load, so it cannot sit behind the auth guard. A signed-in
+ * user is redirected off it below — the page is prerendered and cannot read
+ * the session itself. Listed here rather than under AUTH_PATHS because only
+ * the exact path `/` is meant, not everything beneath it.
  *
  * `/api/inngest` and `/api/cron` — these are machine endpoints with their own
  * authentication: Inngest verifies a request signature, and the sweep checks
@@ -65,9 +67,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPath) {
+  // A signed-in user has nothing to do on the sign-in pages or the landing
+  // page. `/` used to make this decision while rendering, which forced it to
+  // render on every request; deciding here lets it be served prerendered.
+  if (user && (isAuthPath || pathname === "/")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = SIGNED_IN_HOME;
     url.search = "";
     return NextResponse.redirect(url);
   }

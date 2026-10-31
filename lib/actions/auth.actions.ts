@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import * as authService from "@/lib/services/auth.service";
 import * as membershipService from "@/lib/services/membership.service";
+import { SIGNED_IN_HOME } from "@/lib/utils/routes";
 import { signInSchema, signUpSchema } from "@/lib/validations/auth.schema";
 
 /**
@@ -28,10 +29,15 @@ import type { FormState } from "./form-state";
  * `next` comes from a query string, so it is attacker-controlled. Only a
  * same-origin path is allowed through: a leading `//` is protocol-relative and
  * would send the user to another site while looking like a local path.
+ *
+ * `/` is mapped to SIGNED_IN_HOME as well: the landing page is prerendered and
+ * a redirect from an action renders its destination without the proxy, so a
+ * user sent to `/` would see the marketing page while signed in.
  */
 function safeRedirectPath(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string") return "/";
-  if (!value.startsWith("/") || value.startsWith("//")) return "/";
+  if (typeof value !== "string") return SIGNED_IN_HOME;
+  if (!value.startsWith("/") || value.startsWith("//")) return SIGNED_IN_HOME;
+  if (value === "/") return SIGNED_IN_HOME;
   return value;
 }
 
@@ -112,7 +118,7 @@ export async function signUpAction(
       redirect(`/${slug}/dashboard`);
     } catch (error) {
       // The account exists and they are signed in; only the joining failed.
-      // Sending them to `/` would silently drop them into org creation, so say
+      // Sending them onward would silently drop them into org creation, so say
       // what happened instead.
       if (isRedirectError(error)) throw error;
       return {
@@ -124,7 +130,7 @@ export async function signUpAction(
     }
   }
 
-  redirect("/");
+  redirect(SIGNED_IN_HOME);
 }
 
 export async function signOutAction() {
