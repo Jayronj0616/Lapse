@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import { LandingPage } from "@/components/landing/LandingPage";
-import { getCurrentUser } from "@/lib/services/auth.service";
-import * as organizationService from "@/lib/services/organization.service";
 
 /**
- * Two jobs, decided by whether anyone is signed in.
+ * The public landing page. For this project it is the only screen most people
+ * will ever load, so it has to explain the system without assuming they will
+ * click anything — and it has to load fast.
  *
- * A signed-out visitor gets the public page — for this project that is the
- * only screen most people will ever load, so it has to explain the system
- * without assuming they will click anything.
+ * It is prerendered at build time and served from the CDN. That is why it
+ * reads nothing about the visitor: a single session read here (cookies, the
+ * Supabase user) would make every request render on the server again.
  *
- * A signed-in user never sees it. They are routed to their organization, or to
- * organization creation if they have none, before anything renders.
+ * A signed-in user never sees it. The proxy redirects them to SIGNED_IN_HOME
+ * before this page is served — see proxy.ts.
  */
+
+// Fail the build rather than quietly going back to rendering per request if
+// something request-specific is ever added to this page.
+export const dynamic = "error";
 
 export const metadata: Metadata = {
   title: {
@@ -30,18 +33,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootPage() {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    return <LandingPage />;
-  }
-
-  const organizations = await organizationService.listMine();
-
-  if (organizations.length === 0) {
-    redirect("/new-organization");
-  }
-
-  redirect(`/${organizations[0].slug}/dashboard`);
+export default function RootPage() {
+  return <LandingPage />;
 }

@@ -669,6 +669,22 @@ Verified by rendering all five tiers plus the escalation, then sending the `t7` 
 
 **Rendering a `.ts` module outside Next turned out to be worth the trouble** and is reusable: Node 24 strips types natively, so the only obstacle is the `@/` path alias. A twelve-line resolve hook registered with `node --import` maps `@/` to the project root and tries `.ts`, `.tsx` and `/index.ts` in turn. That makes any module in the project runnable from a scratch script, which is how the email was previewed and sent without standing up a dev server or duplicating the template.
 
+### The landing page is prerendered — 2026-10-31
+
+`/` was rendered on the server for every request: the production homepage always returned `x-vercel-cache: MISS`, at about 2.4 s to first byte cold and 0.8 s warm. Scripts were a normal size, so the time was all server rendering.
+
+**The cause was one line.** `app/page.tsx` called `getCurrentUser()` to send signed-in users onward. That reads the session cookies, and reading cookies makes a route dynamic, so the page every anonymous visitor loads paid for a check that only matters to signed-in ones.
+
+**The fix moves that decision into the proxy**, which already resolves the user on every request for the auth guard. A signed-in user on `/` is now redirected to `SIGNED_IN_HOME` (`lib/utils/routes.ts`, currently `/new-organization`, the page that already sends anyone with an organization to their dashboard). The page itself reads nothing about the visitor and exports `dynamic = "error"`, so the build fails if something request-specific is added to it later, instead of the page quietly going back to rendering per request. `next build` now lists `/` as `○ (Static)`; `next start` serves it with `x-nextjs-cache: HIT`.
+
+**The surprise: a Server Action's `redirect()` does not pass through the proxy.** The action response renders the destination's RSC payload itself. So `redirect("/")` after sign-in, which used to work because the page redirected signed-in users, would now show a signed-in user the marketing page. `signInAction` (its default and an explicit `next=/`) and `signUpAction` now redirect to `SIGNED_IN_HOME` directly. Anything that redirects a signed-in user from an action must not target `/`.
+
+Nothing about auth or tenant isolation changed. The proxy guard and its open/auth path lists are the same, `/new-organization` still lists only the caller's own organizations, and the org layout still checks membership.
+
+Verified on a local production build: an anonymous `/` is served prerendered; "Try the demo" lands on the demo dashboard; while signed in, `/` and `/login` both end on the dashboard; after sign-out `/` shows the landing page again and protected paths redirect to `/login`. The password form was not exercised, because that needed typing real credentials. It now redirects to `/new-organization`, the route the signed-in checks above went through.
+
+`/login` and `/signup` are still dynamic because they read `searchParams` (`next`, `email`, `invite`). They are not hot paths. Reading those values on the client would make them static too if it ever matters.
+
 ### CI typechecks after generating Next's route types — 2026-10-31
 
 The `check` job failed on its first pull request, at `tsc --noEmit`, with `Cannot find name 'PageProps'` and `'LayoutProps'` across every page and layout. Nothing in the code was wrong. Those helpers are global types Next generates into `.next/types` during `next dev`, `next build` or `next typegen`. A machine that has run either of the first two has them; a fresh CI checkout does not, so the typecheck passed locally and failed in CI.
