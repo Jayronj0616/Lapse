@@ -18,6 +18,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm lint
-      - run: pnpm exec tsc --noEmit
+      # Not bare `tsc`: PageProps and LayoutProps are global types Next
+      # generates into .next/types, which a fresh checkout does not have.
+      - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
