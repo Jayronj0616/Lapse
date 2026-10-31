@@ -668,3 +668,10 @@ User-supplied and model-supplied values are escaped before interpolation. A docu
 Verified by rendering all five tiers plus the escalation, then sending the `t7` and `overdue` variants through Resend to a real inbox using the actual template module rather than a reimplementation of it.
 
 **Rendering a `.ts` module outside Next turned out to be worth the trouble** and is reusable: Node 24 strips types natively, so the only obstacle is the `@/` path alias. A twelve-line resolve hook registered with `node --import` maps `@/` to the project root and tries `.ts`, `.tsx` and `/index.ts` in turn. That makes any module in the project runnable from a scratch script, which is how the email was previewed and sent without standing up a dev server or duplicating the template.
+
+### CI typechecks after generating Next's route types — 2026-10-31
+
+The `check` job failed on its first pull request, at `tsc --noEmit`, with `Cannot find name 'PageProps'` and `'LayoutProps'` across every page and layout. Nothing in the code was wrong. Those helpers are global types Next generates into `.next/types` during `next dev`, `next build` or `next typegen`. A machine that has run either of the first two has them; a fresh CI checkout does not, so the typecheck passed locally and failed in CI.
+
+`pnpm typecheck` is now `next typegen && tsc --noEmit`, the order the Next docs give for CI, and the workflow runs that instead of bare `tsc`. Use it locally too: a new worktree has the same empty `.next` as CI.
+
