@@ -8,12 +8,13 @@ Update the status column in the same session the work happens. A stale tree is w
 
 ```
 lapse/
-├── proxy.ts                                  OK  session refresh + deny-by-default auth guard
+├── proxy.ts                                  OK  session refresh + deny-by-default auth guard;
+│                                                 sends signed-in users off `/` to SIGNED_IN_HOME
 │                                                 (Next 16 renamed `middleware` to `proxy`)
 ├── app/
 │   ├── layout.tsx                            OK  root: Poppins, Geist Mono, metadata template
 │   ├── globals.css                           OK  shadcn base + Lapse status tokens
-│   ├── page.tsx                              OK  landing page when signed out; routes onward when in
+│   ├── page.tsx                              OK  landing page, prerendered; proxy routes signed-in users on
 │   ├── new-organization/page.tsx             OK  onboarding; bounces out if they already have one
 │   ├── invite/[token]/page.tsx               OK  public; preview, sign up, or accept
 │   ├── (auth)/
@@ -119,6 +120,7 @@ lapse/
 │   │   └── templates.ts                      OK  html + plain text, tier-coloured
 │   ├── utils/
 │   │   ├── slug.ts                           OK  slugify + collision suffix
+│   │   ├── routes.ts                         OK  SIGNED_IN_HOME — never redirect a signed-in user to `/`
 │   │   ├── dates.ts                          OK  UTC calendar days, no TZ drift
 │   │   └── status.ts                         OK  expiry → status, status → tone
 │   └── utils.ts                              OK  shadcn's cn()
