@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useOpenPanel } from "@openpanel/nextjs";
 import Link from "next/link";
 import { LoaderCircle, MailCheck } from "lucide-react";
 
@@ -15,6 +16,14 @@ export function SignUpForm({ invite }: { invite?: string }) {
     signUpAction,
     {},
   );
+
+  // The confirmation branch does not redirect, so there is no next page to
+  // carry the event; report it from here. Inert when analytics is off.
+  const { track } = useOpenPanel();
+  const confirmed = Boolean(state.message);
+  useEffect(() => {
+    if (confirmed) track("signed_up");
+  }, [confirmed, track]);
 
   // Sign-up succeeded but the project requires email confirmation, so there is
   // no session yet. Showing the form again would look like nothing happened.

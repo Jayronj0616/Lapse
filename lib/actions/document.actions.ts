@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import * as documentService from "@/lib/services/document.service";
 import * as organizationService from "@/lib/services/organization.service";
+import { PENDING_EVENT_COOKIE } from "@/lib/analytics/events";
 import { createDocumentSchema } from "@/lib/validations/document.schema";
 
 import { emptyToNull, text } from "./form-data";
@@ -60,5 +62,11 @@ export async function createDocumentAction(
   revalidatePath(`/${organization.slug}/documents`);
   revalidatePath(`/${organization.slug}/dashboard`);
 
+  (await cookies()).set(PENDING_EVENT_COOKIE, "document_uploaded", {
+    path: "/",
+    maxAge: 60,
+    httpOnly: false,
+    sameSite: "lax",
+  });
   redirect(`/${organization.slug}/documents`);
 }
