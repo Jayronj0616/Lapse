@@ -65,6 +65,7 @@ pnpm dev
 
 ```bash
 pnpm test
+pnpm typecheck   # generates Next's route types first, then runs tsc
 ```
 
 Unit tests cover the pure logic the reminder pipeline depends on: the confidence gate, expiry date math, status tones and slug generation.

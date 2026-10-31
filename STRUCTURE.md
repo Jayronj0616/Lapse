@@ -137,6 +137,7 @@ lapse/
 │       ├── 0005_invitations.sql               OK  applied
 │       └── 0006_notifications_follow_reminders.sql OK applied
 │
+├── .github/workflows/ci.yml                  OK  lint, typecheck, test, build on push and PR
 ├── .github/workflows/keepalive.yml           OK  backup sweep trigger, offset by 90min
 ├── vercel.json                               OK  Vercel Cron, 02:00 UTC daily
 ├── scripts/seed-admin.mjs                     OK  pnpm seed:admin; values from env

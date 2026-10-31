@@ -685,3 +685,9 @@ Verified on a local production build: an anonymous `/` is served prerendered; "T
 
 `/login` and `/signup` are still dynamic because they read `searchParams` (`next`, `email`, `invite`). They are not hot paths. Reading those values on the client would make them static too if it ever matters.
 
+### CI typechecks after generating Next's route types — 2026-10-31
+
+The `check` job failed on its first pull request, at `tsc --noEmit`, with `Cannot find name 'PageProps'` and `'LayoutProps'` across every page and layout. Nothing in the code was wrong. Those helpers are global types Next generates into `.next/types` during `next dev`, `next build` or `next typegen`. A machine that has run either of the first two has them; a fresh CI checkout does not, so the typecheck passed locally and failed in CI.
+
+`pnpm typecheck` is now `next typegen && tsc --noEmit`, the order the Next docs give for CI, and the workflow runs that instead of bare `tsc`. Use it locally too: a new worktree has the same empty `.next` as CI.
+
