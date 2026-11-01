@@ -1,10 +1,12 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import * as authService from "@/lib/services/auth.service";
 import * as membershipService from "@/lib/services/membership.service";
+import { PENDING_EVENT_COOKIE, type PendingEvent } from "@/lib/analytics/events";
 import { SIGNED_IN_HOME } from "@/lib/utils/routes";
 import { signInSchema, signUpSchema } from "@/lib/validations/auth.schema";
 
@@ -41,6 +43,16 @@ function safeRedirectPath(value: FormDataEntryValue | null): string {
   return value;
 }
 
+/** Queues an analytics event for the next page load; see lib/analytics/events. */
+async function queueEvent(event: PendingEvent) {
+  (await cookies()).set(PENDING_EVENT_COOKIE, event, {
+    path: "/",
+    maxAge: 60,
+    httpOnly: false,
+    sameSite: "lax",
+  });
+}
+
 export async function signInAction(
   _prev: FormState,
   formData: FormData,
@@ -67,6 +79,7 @@ export async function signInAction(
 
   // Outside the try: redirect() works by throwing, so catching around it would
   // swallow the redirect and report it as a failure.
+  await queueEvent("logged_in");
   redirect(safeRedirectPath(formData.get("next")));
 }
 
@@ -115,6 +128,7 @@ export async function signUpAction(
   if (inviteToken) {
     try {
       const slug = await membershipService.acceptInvitation(inviteToken);
+      await queueEvent("signed_up");
       redirect(`/${slug}/dashboard`);
     } catch (error) {
       // The account exists and they are signed in; only the joining failed.
@@ -130,6 +144,7 @@ export async function signUpAction(
     }
   }
 
+  await queueEvent("signed_up");
   redirect(SIGNED_IN_HOME);
 }
 

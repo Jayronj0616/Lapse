@@ -43,7 +43,7 @@ const AUTH_PATHS = ["/login", "/signup", "/auth"];
  * keepalive, that failure is silent until the database pauses. A 307 to a
  * login page is not something a cron job knows how to complain about.
  */
-const OPEN_PATHS = ["/", "/invite", "/api/inngest", "/api/cron"];
+const OPEN_PATHS = ["/", "/invite", "/api/inngest", "/api/cron", "/api/op"];
 
 function matches(paths: string[], pathname: string): boolean {
   return paths.some(
